@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 const sessions = [
@@ -307,24 +308,24 @@ function WorkoutScreen({ onBack }: { onBack: () => void }) {
                   >
                     <span className="w-8 font-mono text-xs text-muted-foreground">{j + 1}</span>
                     <span className="flex flex-1 items-center gap-1.5 text-sm">
-                      <input
+                      <Input
                         type="number"
                         inputMode="decimal"
                         min="0"
                         aria-label={`${ex.name} set ${j + 1} weight`}
                         value={set.weight}
                         onChange={(event) => updateSet(i, j, 'weight', event.target.value)}
-                        className="w-16 rounded-md border border-border bg-card px-2 py-1 text-right font-mono text-xs"
+                        className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
                       />
                       <span className="text-muted-foreground">lb ×</span>
-                      <input
+                      <Input
                         type="number"
                         inputMode="numeric"
                         min="0"
                         aria-label={`${ex.name} set ${j + 1} reps`}
                         value={set.reps}
                         onChange={(event) => updateSet(i, j, 'reps', event.target.value)}
-                        className="w-12 rounded-md border border-border bg-card px-2 py-1 text-right font-mono text-xs"
+                        className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
                       />
                       <span className="text-muted-foreground">reps</span>
                     </span>
@@ -411,7 +412,7 @@ function WorkoutScreen({ onBack }: { onBack: () => void }) {
                 <X />
               </Button>
             </div>
-            <input
+            <Input
               autoFocus
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
@@ -424,7 +425,7 @@ function WorkoutScreen({ onBack }: { onBack: () => void }) {
                   addExercise()
               }}
               placeholder="e.g. Lat pulldown machine"
-              className="mt-5 h-12 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-5 h-12 rounded-xl bg-background px-4 text-sm"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               {['Lat pulldown', 'Leg press', 'Seated row', 'Shoulder press'].map((name) => (
