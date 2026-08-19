@@ -70,7 +70,7 @@ function HomeScreen({ onStart }: { onStart: () => void }) {
           </div>
           <h1 className="text-balance text-4xl font-semibold tracking-[-0.06em] md:text-6xl">
             Build the body
-            <br className="hidden md:block" /> you came for.
+            <br className="hidden md:block" /> you came for
           </h1>
           <p className="max-w-md text-pretty leading-6 text-muted-foreground">
             Keep your momentum. Your next session is ready when you are.
