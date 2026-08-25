@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Check, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
 import { formatDuration, formatTime } from '@/components/gym-dashboard/format'
-import WorkoutTitle from '@/components/gym-dashboard/workout-title'
+import EditableText from '@/components/gym-dashboard/editable-text'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -68,7 +68,13 @@ export default function WorkoutScreen({
             {finished ? 'Completed' : 'In progress'}
           </p>
           {workout ? (
-            <WorkoutTitle name={workout.name} onRename={rename} />
+            <EditableText
+              value={workout.name}
+              label="Workout name"
+              onSave={rename}
+              className="font-semibold"
+              inputClassName="w-48 text-center font-semibold"
+            />
           ) : (
             <p className="font-semibold">—</p>
           )}

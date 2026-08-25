@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 
-export default function WorkoutTitle({
-  name,
-  onRename,
+export default function EditableText({
+  value,
+  label,
+  onSave,
+  className,
+  inputClassName,
 }: {
-  name: string
-  onRename: (name: string) => void
+  value: string
+  label: string
+  onSave: (value: string) => void
+  className?: string
+  inputClassName?: string
 }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(name)
+  const [draft, setDraft] = useState(value)
   const input = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -19,8 +26,8 @@ export default function WorkoutTitle({
 
   const commit = () => {
     const next = draft.trim()
-    if (next && next !== name) onRename(next)
-    else setDraft(name)
+    if (next && next !== value) onSave(next)
+    else setDraft(value)
     setEditing(false)
   }
 
@@ -29,18 +36,18 @@ export default function WorkoutTitle({
       <Input
         ref={input}
         autoFocus
-        aria-label="Workout name"
+        aria-label={label}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={commit}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.nativeEvent.isComposing) commit()
           if (event.key === 'Escape') {
-            setDraft(name)
+            setDraft(value)
             setEditing(false)
           }
         }}
-        className="h-8 w-48 rounded-lg text-center font-semibold"
+        className={cn('h-8 rounded-lg', inputClassName)}
       />
     )
   }
@@ -48,14 +55,17 @@ export default function WorkoutTitle({
   return (
     <button
       onClick={() => {
-        setDraft(name)
+        setDraft(value)
         setEditing(true)
       }}
-      className="group flex items-center gap-1.5 font-semibold"
-      aria-label={`Rename workout, currently ${name}`}
+      className={cn(
+        '-mx-2 flex items-center gap-1.5 rounded-lg px-2 py-1 decoration-dotted underline-offset-4 transition-colors hover:bg-muted hover:underline',
+        className,
+      )}
+      aria-label={`${label}, currently ${value}`}
     >
-      {name}
-      <Pencil className="size-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+      <span className="truncate">{value}</span>
+      <Pencil className="size-3.5 shrink-0 text-muted-foreground" />
     </button>
   )
 }
