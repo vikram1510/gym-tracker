@@ -1,5 +1,5 @@
 import AuthScreen from '@/components/auth-screen/auth-screen'
-import GymDashboard from '@/components/gym-dashboard'
+import GymDashboard from '@/components/gym-dashboard/gym-dashboard'
 import MissingConfig from '@/components/missing-config'
 import { supabaseConfigured } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { MailCheck } from 'lucide-react'
-import Logo from '@/components/auth-screen/logo'
+import Logo from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
