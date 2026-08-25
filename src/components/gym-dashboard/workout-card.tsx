@@ -19,18 +19,18 @@ export default function WorkoutCard({
   onAction: () => void
 }) {
   return (
-    <div className="rounded-[2rem] bg-primary p-6 text-primary-foreground md:p-8">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+    <div className="min-w-0 overflow-hidden rounded-[2rem] bg-primary p-6 text-primary-foreground md:p-8">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-sm text-primary-foreground/60">{label}</p>
-          <h2 className="mt-1 truncate text-2xl font-semibold">{title}</h2>
+          <h2 className="mt-1 text-2xl font-semibold text-balance break-words">{title}</h2>
         </div>
         <span className="shrink-0 rounded-full bg-primary-foreground/10 px-3 py-1 font-mono text-xs">
           {badge}
         </span>
       </div>
-      <div className="mt-12 flex items-end justify-between gap-4">
-        <div className="min-w-0">
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <p className="font-mono text-[10px] uppercase tracking-widest text-primary-foreground/50">
             {footerLabel}
           </p>

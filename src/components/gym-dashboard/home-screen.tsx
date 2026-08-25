@@ -72,12 +72,12 @@ export default function HomeScreen({ onOpen }: { onOpen: (workoutId: string) => 
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border rounded-[1.75rem] border border-border bg-card px-5">
+          <div className="divide-y divide-border overflow-hidden rounded-[1.75rem] border border-border bg-card">
             {recent.map((workout) => (
               <button
                 key={workout.id}
                 onClick={() => onOpen(workout.id)}
-                className="-mx-5 flex w-[calc(100%+2.5rem)] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+                className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
               >
                 <span className="size-3 shrink-0 rounded-full bg-primary" />
                 <div className="min-w-0 flex-1">
