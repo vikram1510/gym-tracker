@@ -13,7 +13,9 @@ import {
 export function useWorkout(workoutId: string) {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const pendingWrites = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const pendingWrites = useRef(
+    new Map<string, { timer: ReturnType<typeof setTimeout>; write: () => Promise<void> }>(),
+  )
 
   useEffect(() => {
     let active = true
@@ -26,8 +28,8 @@ export function useWorkout(workoutId: string) {
   }, [workoutId])
 
   useEffect(() => {
-    const timers = pendingWrites.current
-    return () => timers.forEach(clearTimeout)
+    const pending = pendingWrites.current
+    return () => pending.forEach((entry) => clearTimeout(entry.timer))
   }, [])
 
   const patchSet = useCallback(
@@ -68,14 +70,12 @@ export function useWorkout(workoutId: string) {
       patchSet(exerciseId, setId, { [field]: value })
 
       const key = `${setId}:${field}`
-      clearTimeout(pendingWrites.current.get(key))
-      pendingWrites.current.set(
-        key,
-        setTimeout(() => {
-          updateSet(setId, { [field]: value }).catch((cause) => setError(cause.message))
-          pendingWrites.current.delete(key)
-        }, 500),
-      )
+      clearTimeout(pendingWrites.current.get(key)?.timer)
+      const write = async () => {
+        pendingWrites.current.delete(key)
+        await updateSet(setId, { [field]: value }).catch((cause) => setError(cause.message))
+      }
+      pendingWrites.current.set(key, { timer: setTimeout(write, 500), write })
     },
     [patchSet],
   )
@@ -143,10 +143,14 @@ export function useWorkout(workoutId: string) {
     [workout],
   )
 
-  const finish = useCallback(
-    () => finishWorkout(workoutId).catch((cause) => setError(cause.message)),
-    [workoutId],
-  )
+  // Anything still waiting on the debounce has to land before the workout is
+  // closed, or the last weight typed is silently dropped.
+  const finish = useCallback(async () => {
+    const pending = [...pendingWrites.current.values()]
+    pending.forEach((entry) => clearTimeout(entry.timer))
+    await Promise.all(pending.map((entry) => entry.write()))
+    await finishWorkout(workoutId).catch((cause) => setError(cause.message))
+  }, [workoutId])
 
   return {
     workout,

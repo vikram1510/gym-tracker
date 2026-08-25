@@ -24,6 +24,7 @@ export default function WorkoutScreen({
     useWorkout(workoutId)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
+  const [finishing, setFinishing] = useState(false)
 
   const submitExercise = () => {
     const name = newName.trim()
@@ -59,12 +60,14 @@ export default function WorkoutScreen({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            finish()
+          disabled={finishing}
+          onClick={async () => {
+            setFinishing(true)
+            await finish()
             onBack()
           }}
         >
-          Finish
+          {finishing ? 'Finishing…' : 'Finish'}
         </Button>
       </div>
 
