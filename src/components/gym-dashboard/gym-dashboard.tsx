@@ -7,14 +7,25 @@ import ProgressScreen from '@/components/gym-dashboard/progress-screen'
 import WorkoutScreen from '@/components/gym-dashboard/workout-screen'
 import Logo from '@/components/logo'
 import { Button } from '@/components/ui/button'
+import { createWorkout } from '@/lib/workouts'
 import { cn } from '@/lib/utils'
 
 export default function GymDashboard() {
   const [screen, setScreen] = useState('home')
-  const [workout, setWorkout] = useState(false)
+  const [workoutId, setWorkoutId] = useState<string | null>(null)
+  const [startError, setStartError] = useState<string | null>(null)
   const navigate = (next: string) => {
     setScreen(next)
-    setWorkout(false)
+    setWorkoutId(null)
+  }
+  const startWorkout = async () => {
+    setStartError(null)
+    try {
+      const created = await createWorkout('Push day')
+      setWorkoutId(created.id)
+    } catch (cause) {
+      setStartError((cause as Error).message)
+    }
   }
   return (
     <main className="min-h-screen bg-background pb-28 text-foreground md:pb-8">
@@ -31,10 +42,15 @@ export default function GymDashboard() {
             <UserRound />
           </Button>
         </header>
-        {workout ? (
-          <WorkoutScreen onBack={() => setWorkout(false)} />
+        {startError && (
+          <p role="alert" className="text-sm text-destructive">
+            {startError}
+          </p>
+        )}
+        {workoutId ? (
+          <WorkoutScreen workoutId={workoutId} onBack={() => setWorkoutId(null)} />
         ) : screen === 'home' ? (
-          <HomeScreen onStart={() => setWorkout(true)} />
+          <HomeScreen onStart={startWorkout} />
         ) : screen === 'progress' ? (
           <ProgressScreen />
         ) : screen === 'history' ? (
@@ -69,7 +85,7 @@ export default function GymDashboard() {
           variant="default"
           size="icon"
           className="size-12 -translate-y-5 rounded-full border-4 border-background bg-accent text-accent-foreground shadow-md hover:bg-accent/90"
-          onClick={() => setWorkout(true)}
+          onClick={startWorkout}
           aria-label="Start workout"
         >
           <Plus />

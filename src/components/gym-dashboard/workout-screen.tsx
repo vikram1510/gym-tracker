@@ -1,61 +1,49 @@
 import { useState } from 'react'
-import { ArrowLeft, Check, MoreHorizontal, Pause, Plus, X } from 'lucide-react'
-import { starterExercises } from '@/components/gym-dashboard/demo-data'
+import { ArrowLeft, Check, MoreHorizontal, Plus, X } from 'lucide-react'
+import { useWorkout } from '@/components/gym-dashboard/use-workout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-export default function WorkoutScreen({ onBack }: { onBack: () => void }) {
-  const [exercises, setExercises] = useState(starterExercises)
+const dotColors = ['bg-primary', 'bg-accent', 'bg-secondary']
+
+function toNumber(value: string) {
+  if (value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+export default function WorkoutScreen({
+  workoutId,
+  onBack,
+}: {
+  workoutId: string
+  onBack: () => void
+}) {
+  const { workout, error, toggleSet, editSet, appendSet, deleteSet, appendExercise, finish } =
+    useWorkout(workoutId)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
-  const toggleSet = (exerciseIndex: number, setIndex: number) =>
-    setExercises((current) =>
-      current.map((exercise, i) =>
-        i === exerciseIndex
-          ? {
-              ...exercise,
-              sets: exercise.sets.map((set, j) =>
-                j === setIndex ? { ...set, done: !set.done } : set,
-              ),
-            }
-          : exercise,
-      ),
-    )
-  const updateSet = (
-    exerciseIndex: number,
-    setIndex: number,
-    field: 'weight' | 'reps',
-    value: string,
-  ) =>
-    setExercises((current) =>
-      current.map((exercise, i) =>
-        i === exerciseIndex
-          ? {
-              ...exercise,
-              sets: exercise.sets.map((set, j) =>
-                j === setIndex ? { ...set, [field]: value } : set,
-              ),
-            }
-          : exercise,
-      ),
-    )
-  const addExercise = () => {
+
+  const submitExercise = () => {
     const name = newName.trim()
     if (!name) return
-    setExercises((current) => [
-      ...current,
-      {
-        name,
-        target: '3 sets × 10 reps',
-        last: 'New exercise',
-        color: 'bg-accent',
-        sets: Array.from({ length: 3 }, () => ({ weight: '0', reps: '10', done: false })),
-      },
-    ])
+    appendExercise(name)
     setNewName('')
     setShowPicker(false)
   }
+
+  const volume =
+    workout?.workout_exercises.reduce(
+      (total, exercise) =>
+        total +
+        exercise.sets.reduce(
+          (sum, set) => (set.completed ? sum + (set.weight_kg ?? 0) * (set.reps ?? 0) : sum),
+          0,
+        ),
+      0,
+    ) ?? 0
+
   return (
     <section className="pt-4">
       <div className="flex items-center justify-between">
@@ -66,143 +54,161 @@ export default function WorkoutScreen({ onBack }: { onBack: () => void }) {
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
             In progress
           </p>
-          <h1 className="font-semibold">Push day</h1>
+          <h1 className="font-semibold">{workout?.name ?? 'Workout'}</h1>
         </div>
-        <Button variant="ghost" size="icon" aria-label="Pause">
-          <Pause />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            finish()
+            onBack()
+          }}
+        >
+          Finish
         </Button>
       </div>
+
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
       <div className="mt-8 rounded-[1.75rem] bg-primary p-5 text-primary-foreground">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-primary-foreground/60">Elapsed time</p>
-            <p className="mt-1 font-mono text-3xl">24:18</p>
+            <p className="text-sm text-primary-foreground/60">Started</p>
+            <p className="mt-1 font-mono text-3xl">
+              {workout
+                ? new Date(workout.started_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '—'}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-sm text-primary-foreground/60">Volume</p>
-            <p className="mt-1 font-mono text-xl">4,820 lb</p>
+            <p className="mt-1 font-mono text-xl">{volume.toLocaleString()} kg</p>
           </div>
         </div>
       </div>
-      <div className="mt-8 flex flex-col gap-4">
-        {exercises.map((ex, i) => (
-          <div
-            key={`${ex.name}-${i}`}
-            className="rounded-[1.5rem] border border-border bg-card p-5"
-          >
-            <div className="flex items-start gap-3">
-              <span className={cn('mt-1 size-3 rounded-full', ex.color)} />
-              <div className="flex-1">
-                <h2 className="font-semibold">{ex.name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {ex.target} · Last {ex.last}
-                </p>
+
+      {!workout ? (
+        <p className="mt-8 text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <div className="mt-8 flex flex-col gap-4">
+          {workout.workout_exercises.map((exercise, exerciseIndex) => (
+            <div key={exercise.id} className="rounded-[1.5rem] border border-border bg-card p-5">
+              <div className="flex items-start gap-3">
+                <span
+                  className={cn(
+                    'mt-1 size-3 rounded-full',
+                    dotColors[exerciseIndex % dotColors.length],
+                  )}
+                />
+                <div className="flex-1">
+                  <h2 className="font-semibold">{exercise.name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
+                  </p>
+                </div>
+                <Button variant="ghost" size="icon" aria-label="Exercise options">
+                  <MoreHorizontal />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" aria-label="Exercise options">
-                <MoreHorizontal />
+              <div className="mt-5 flex flex-col gap-2">
+                {exercise.sets.map((set, setIndex) => (
+                  <div
+                    key={set.id}
+                    className={cn(
+                      'flex min-h-12 items-center gap-2 rounded-xl border px-3 transition-colors',
+                      set.completed ? 'border-accent bg-accent/15' : 'border-border bg-background',
+                    )}
+                  >
+                    <button
+                      onClick={() => toggleSet(exercise.id, set)}
+                      className="flex flex-1 items-center gap-3 text-left"
+                      aria-label={`${exercise.name} set ${setIndex + 1}`}
+                    >
+                      <span className="w-8 font-mono text-xs text-muted-foreground">
+                        {setIndex + 1}
+                      </span>
+                      <span className="flex flex-1 items-center gap-1.5 text-sm">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          aria-label={`${exercise.name} set ${setIndex + 1} weight`}
+                          value={set.weight_kg ?? ''}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) =>
+                            editSet(exercise.id, set.id, 'weight_kg', toNumber(event.target.value))
+                          }
+                          className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                        />
+                        <span className="text-muted-foreground">kg ×</span>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          aria-label={`${exercise.name} set ${setIndex + 1} reps`}
+                          value={set.reps ?? ''}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) =>
+                            editSet(exercise.id, set.id, 'reps', toNumber(event.target.value))
+                          }
+                          className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                        />
+                        <span className="text-muted-foreground">reps</span>
+                      </span>
+                      {set.completed ? (
+                        <Check className="text-accent" />
+                      ) : (
+                        <span className="hidden text-xs text-muted-foreground sm:inline">
+                          Tap to complete
+                        </span>
+                      )}
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove set"
+                      onClick={() => deleteSet(exercise.id, set.id)}
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                className="mt-3 w-full rounded-xl"
+                onClick={() => appendSet(exercise)}
+              >
+                <Plus data-icon="inline-start" />
+                Add set
               </Button>
             </div>
-            <div className="mt-5 flex flex-col gap-2">
-              {ex.sets.map((set, j) => (
-                <div
-                  key={j}
-                  className={cn(
-                    'flex min-h-12 items-center gap-2 rounded-xl border px-3 transition-colors',
-                    set.done ? 'border-accent bg-accent/15' : 'border-border bg-background',
-                  )}
-                >
-                  <button
-                    onClick={() => toggleSet(i, j)}
-                    className="flex flex-1 items-center gap-3 text-left"
-                    aria-label={`${ex.name} set ${j + 1}`}
-                  >
-                    <span className="w-8 font-mono text-xs text-muted-foreground">{j + 1}</span>
-                    <span className="flex flex-1 items-center gap-1.5 text-sm">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        aria-label={`${ex.name} set ${j + 1} weight`}
-                        value={set.weight}
-                        onChange={(event) => updateSet(i, j, 'weight', event.target.value)}
-                        className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                      />
-                      <span className="text-muted-foreground">lb ×</span>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        aria-label={`${ex.name} set ${j + 1} reps`}
-                        value={set.reps}
-                        onChange={(event) => updateSet(i, j, 'reps', event.target.value)}
-                        className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                      />
-                      <span className="text-muted-foreground">reps</span>
-                    </span>
-                    {set.done ? (
-                      <Check className="text-accent" />
-                    ) : (
-                      <span className="hidden text-xs text-muted-foreground sm:inline">
-                        Tap to complete
-                      </span>
-                    )}
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Remove set"
-                    onClick={() =>
-                      setExercises((current) =>
-                        current.map((item, index) =>
-                          index === i
-                            ? { ...item, sets: item.sets.filter((_, setIndex) => setIndex !== j) }
-                            : item,
-                        ),
-                      )
-                    }
-                  >
-                    <X />
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              className="mt-3 w-full rounded-xl"
-              onClick={() =>
-                setExercises((current) =>
-                  current.map((item, index) =>
-                    index === i
-                      ? {
-                          ...item,
-                          sets: [
-                            ...item.sets,
-                            {
-                              weight: item.sets.at(-1)?.weight ?? '0',
-                              reps: item.sets.at(-1)?.reps ?? '10',
-                              done: false,
-                            },
-                          ],
-                        }
-                      : item,
-                  ),
-                )
-              }
-            >
-              <Plus data-icon="inline-start" />
-              Add set
-            </Button>
-          </div>
-        ))}
-        <Button
-          variant="outline"
-          className="min-h-14 w-full rounded-2xl border-dashed"
-          onClick={() => setShowPicker(true)}
-        >
-          <Plus data-icon="inline-start" />
-          Add machine or exercise
-        </Button>
-      </div>
+          ))}
+
+          {workout.workout_exercises.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nothing logged yet. Add your first exercise below.
+            </p>
+          )}
+
+          <Button
+            variant="outline"
+            className="min-h-14 w-full rounded-2xl border-dashed"
+            onClick={() => setShowPicker(true)}
+          >
+            <Plus data-icon="inline-start" />
+            Add machine or exercise
+          </Button>
+        </div>
+      )}
+
       {showPicker && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-primary/30 p-4 md:items-center">
           <div className="w-full max-w-md rounded-[1.75rem] border border-border bg-card p-5 shadow-xl">
@@ -232,7 +238,7 @@ export default function WorkoutScreen({ onBack }: { onBack: () => void }) {
                   !event.nativeEvent.isComposing &&
                   event.keyCode !== 229
                 )
-                  addExercise()
+                  submitExercise()
               }}
               placeholder="e.g. Lat pulldown machine"
               className="mt-5 h-12 rounded-xl bg-background px-4 text-sm"
@@ -249,7 +255,7 @@ export default function WorkoutScreen({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <Button
-              onClick={addExercise}
+              onClick={submitExercise}
               disabled={!newName.trim()}
               className="mt-5 w-full rounded-xl"
             >
