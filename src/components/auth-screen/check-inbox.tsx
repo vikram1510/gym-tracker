@@ -10,7 +10,11 @@ export default function CheckInbox({ email, onBack }: { email: string; onBack: (
 
   const resend = async () => {
     setResending(true)
-    await supabase.auth.resend({ type: 'signup', email })
+    await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    })
     setResending(false)
     setResent(true)
   }

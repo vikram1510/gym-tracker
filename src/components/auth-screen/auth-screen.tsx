@@ -22,7 +22,11 @@ export default function AuthScreen() {
     const { data, error: authError } =
       mode === 'signin'
         ? await supabase.auth.signInWithPassword({ email: address, password })
-        : await supabase.auth.signUp({ email: address, password })
+        : await supabase.auth.signUp({
+            email: address,
+            password,
+            options: { emailRedirectTo: window.location.origin },
+          })
 
     if (authError) setError(authError.message)
     else if (mode === 'signup' && !data.session) setAwaitingConfirmation(address)
