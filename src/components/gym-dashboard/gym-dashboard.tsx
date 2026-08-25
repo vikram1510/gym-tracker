@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CalendarDays, Home, Plus, TrendingUp, UserRound } from 'lucide-react'
+import { defaultWorkoutName } from '@/components/gym-dashboard/format'
 import HistoryScreen from '@/components/gym-dashboard/history-screen'
 import HomeScreen from '@/components/gym-dashboard/home-screen'
 import ProfileScreen from '@/components/gym-dashboard/profile-screen'
@@ -21,7 +22,7 @@ export default function GymDashboard() {
   const startWorkout = async () => {
     setStartError(null)
     try {
-      const created = await createWorkout('Push day')
+      const created = await createWorkout(defaultWorkoutName())
       setWorkoutId(created.id)
     } catch (cause) {
       setStartError((cause as Error).message)
@@ -50,7 +51,7 @@ export default function GymDashboard() {
         {workoutId ? (
           <WorkoutScreen workoutId={workoutId} onBack={() => setWorkoutId(null)} />
         ) : screen === 'home' ? (
-          <HomeScreen onResume={setWorkoutId} />
+          <HomeScreen onOpen={setWorkoutId} />
         ) : screen === 'progress' ? (
           <ProgressScreen />
         ) : screen === 'history' ? (

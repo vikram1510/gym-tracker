@@ -5,6 +5,7 @@ import {
   fetchWorkout,
   finishWorkout,
   removeSet,
+  renameWorkout,
   updateSet,
   type Workout,
   type WorkoutSet,
@@ -143,6 +144,14 @@ export function useWorkout(workoutId: string) {
     [workout],
   )
 
+  const rename = useCallback(
+    (name: string) => {
+      setWorkout((current) => (current ? { ...current, name } : current))
+      renameWorkout(workoutId, name).catch((cause) => setError(cause.message))
+    },
+    [workoutId],
+  )
+
   // Anything still waiting on the debounce has to land before the workout is
   // closed, or the last weight typed is silently dropped.
   const finish = useCallback(async () => {
@@ -160,6 +169,7 @@ export function useWorkout(workoutId: string) {
     appendSet,
     deleteSet,
     appendExercise,
+    rename,
     finish,
   }
 }

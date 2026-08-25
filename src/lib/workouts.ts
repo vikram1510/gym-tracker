@@ -132,3 +132,8 @@ export async function fetchActiveWorkouts() {
   if (error) throw error
   return (data ?? []) as WorkoutSummary[]
 }
+
+export async function renameWorkout(id: string, name: string) {
+  const { error } = await supabase.from('workouts').update({ name }).eq('id', id)
+  if (error) throw error
+}

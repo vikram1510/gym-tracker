@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, MoreHorizontal } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import {
   formatDay,
   formatDuration,
@@ -11,7 +11,7 @@ import { useHomeData } from '@/components/gym-dashboard/use-home-data'
 import WorkoutCard from '@/components/gym-dashboard/workout-card'
 import { Button } from '@/components/ui/button'
 
-export default function HomeScreen({ onResume }: { onResume: (workoutId: string) => void }) {
+export default function HomeScreen({ onOpen }: { onOpen: (workoutId: string) => void }) {
   const { active, recent, loading, error } = useHomeData()
   const [quote] = useState(randomQuote)
 
@@ -43,7 +43,7 @@ export default function HomeScreen({ onResume }: { onResume: (workoutId: string)
             footerLabel="So far"
             footerValue={`${workout.completed_sets} ${workout.completed_sets === 1 ? 'set' : 'sets'} · ${formatVolume(workout.volume_kg)}`}
             actionLabel="Resume"
-            onAction={() => onResume(workout.id)}
+            onAction={() => onOpen(workout.id)}
           />
         ))}
       </section>
@@ -74,8 +74,12 @@ export default function HomeScreen({ onResume }: { onResume: (workoutId: string)
         ) : (
           <div className="divide-y divide-border rounded-[1.75rem] border border-border bg-card px-5">
             {recent.map((workout) => (
-              <div key={workout.id} className="flex items-center gap-4 py-4">
-                <span className="size-3 rounded-full bg-primary" />
+              <button
+                key={workout.id}
+                onClick={() => onOpen(workout.id)}
+                className="-mx-5 flex w-[calc(100%+2.5rem)] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
+              >
+                <span className="size-3 shrink-0 rounded-full bg-primary" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{workout.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -85,8 +89,8 @@ export default function HomeScreen({ onResume }: { onResume: (workoutId: string)
                 <span className="hidden font-mono text-xs text-muted-foreground sm:block">
                   {formatVolume(workout.volume_kg)}
                 </span>
-                <MoreHorizontal className="size-5 text-muted-foreground" />
-              </div>
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+              </button>
             ))}
           </div>
         )}

@@ -22,3 +22,9 @@ export function formatVolume(kg: number) {
 export function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
+
+export function defaultWorkoutName(date = new Date()) {
+  const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' })
+  const month = date.toLocaleDateString('en-GB', { month: 'short' })
+  return `Workout ${weekday} ${date.getDate()} ${month}`
+}

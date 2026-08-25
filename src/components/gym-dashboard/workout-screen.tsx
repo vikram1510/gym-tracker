@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ArrowLeft, Check, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
+import { formatDuration, formatTime } from '@/components/gym-dashboard/format'
+import WorkoutTitle from '@/components/gym-dashboard/workout-title'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -20,11 +22,21 @@ export default function WorkoutScreen({
   workoutId: string
   onBack: () => void
 }) {
-  const { workout, error, toggleSet, editSet, appendSet, deleteSet, appendExercise, finish } =
-    useWorkout(workoutId)
+  const {
+    workout,
+    error,
+    toggleSet,
+    editSet,
+    appendSet,
+    deleteSet,
+    appendExercise,
+    rename,
+    finish,
+  } = useWorkout(workoutId)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const finished = Boolean(workout?.finished_at)
 
   const submitExercise = () => {
     const name = newName.trim()
@@ -53,22 +65,30 @@ export default function WorkoutScreen({
         </Button>
         <div className="text-center">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            In progress
+            {finished ? 'Completed' : 'In progress'}
           </p>
-          <h1 className="font-semibold">{workout?.name ?? 'Workout'}</h1>
+          {workout ? (
+            <WorkoutTitle name={workout.name} onRename={rename} />
+          ) : (
+            <p className="font-semibold">—</p>
+          )}
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={finishing}
-          onClick={async () => {
-            setFinishing(true)
-            await finish()
-            onBack()
-          }}
-        >
-          {finishing ? 'Finishing…' : 'Finish'}
-        </Button>
+        {finished ? (
+          <span className="w-16" />
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={finishing}
+            onClick={async () => {
+              setFinishing(true)
+              await finish()
+              onBack()
+            }}
+          >
+            {finishing ? 'Finishing…' : 'Finish'}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -80,14 +100,19 @@ export default function WorkoutScreen({
       <div className="mt-8 rounded-[1.75rem] bg-primary p-5 text-primary-foreground">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-primary-foreground/60">Started</p>
+            <p className="text-sm text-primary-foreground/60">
+              {finished ? 'Duration' : 'Started'}
+            </p>
             <p className="mt-1 font-mono text-3xl">
-              {workout
-                ? new Date(workout.started_at).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : '—'}
+              {!workout
+                ? '—'
+                : finished
+                  ? formatDuration(
+                      (new Date(workout.finished_at!).getTime() -
+                        new Date(workout.started_at).getTime()) /
+                        1000,
+                    )
+                  : formatTime(workout.started_at)}
             </p>
           </div>
           <div className="text-right">
