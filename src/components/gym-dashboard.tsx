@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
 const sessions = [
@@ -565,6 +566,13 @@ function ProfileScreen() {
           <ChevronRight className="size-5 text-muted-foreground" />
         </div>
       </div>
+      <Button
+        variant="outline"
+        className="mt-4 h-12 w-full rounded-2xl"
+        onClick={() => supabase.auth.signOut()}
+      >
+        Sign out
+      </Button>
     </section>
   )
 }
