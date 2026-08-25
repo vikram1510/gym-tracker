@@ -25,16 +25,24 @@ src/components/
     gym-dashboard.tsx     ← the component the folder is named for
     home-screen.tsx       ← only used by gym-dashboard
     workout-screen.tsx
+    workout-card.tsx      ← the dark hero card, shared by both uses
+    workout-title.tsx     ← inline-editable workout name
     progress-screen.tsx
     history-screen.tsx
     profile-screen.tsx
-    stat.tsx              ← shared by home-screen and progress-screen
-    demo-data.ts          ← hardcoded placeholder data
+    stat.tsx
+    use-workout.ts        ← hooks live beside the screen that uses them
+    use-home-data.ts
+    format.ts             ← date, duration, volume, default name
+    quotes.ts
+    demo-data.ts          ← placeholder data, still used by history/progress
   auth-screen/
     auth-screen.tsx
     check-inbox.tsx
     logo.tsx  ✗           ← don't: logo is used outside auth-screen
 ```
+
+Hooks and helpers follow the same rule as components — if only one feature uses it, it lives in that feature's folder. `src/lib/` is for things any feature could need.
 
 No `index.tsx` re-exports — import the real path (`@/components/gym-dashboard/gym-dashboard`) so the file you import matches the file you open.
 
@@ -52,14 +60,47 @@ Use `cn()` from `@/lib/utils` whenever classes are conditional or arrive via pro
 
 ## Supabase
 
-- Client in `src/lib/supabase.ts`, session state in `src/lib/use-session.ts`.
+- Client in `src/lib/supabase.ts`, session state in `src/lib/use-session.ts`, queries in `src/lib/workouts.ts`.
 - `src/App.tsx` gates on session: no config → `MissingConfig`, no session → `AuthScreen`, otherwise the dashboard.
 - Config comes from `.env.local` (gitignored): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Auth is email + password. Google can be added later without migrating anything — it attaches as another identity on the same user.
 
-**Env vars are inlined at build time.** Vite folds `import.meta.env` into constants, so a build without them dead-code-eliminates whole branches — the app silently shrinks to just the `MissingConfig` screen. If a deploy renders "Supabase not configured", the env vars were missing at build, and setting them requires a rebuild. Vercel needs both vars set for production.
+**Env vars are inlined at build time.** Vite folds `import.meta.env` into constants, so a build without them dead-code-eliminates whole branches — the app silently shrinks to just the `MissingConfig` screen. If a deploy renders "Supabase not configured", the env vars were missing at build, and setting them requires a rebuild. Vercel needs both vars set for production, as Config (not Secret — the publishable key ships in the bundle anyway) across all environments.
+
+**Confirmation emails need dashboard config.** Signup passes `emailRedirectTo: window.location.origin`, but Supabase discards any origin missing from Authentication → URL Configuration → Redirect URLs and silently falls back to Site URL. Both localhost and the Vercel domain need entries there.
+
+## Database
+
+Schema lives in `supabase/schema.sql`, run by hand in the SQL Editor. There is no migration tool — if the schema changes, update that file and apply it yourself.
+
+`workouts` → `workout_exercises` → `sets`, each cascading on delete, plus `profiles` and a `workout_summaries` view that computes volume and duration.
+
+- **RLS is on for every table, and must stay that way.** The publishable key is public, so anyone can query the API directly; policies are the only thing stopping them. Child tables inherit ownership through their parent workout rather than storing `user_id` again.
+- **Weights are stored in kilograms.** `profiles.units` is display-only. Never write a pound value into `weight_kg`.
+- **Ordering is explicit** via 0-based `position` columns. Row order from Postgres means nothing.
+- **Totals are computed, never stored** — volume and duration come from `workout_summaries`.
+- A trigger creates a `profiles` row on signup, so a logged-in user always has one. Accounts made before that trigger existed do not.
+
+## Data loading
+
+Screens get their data from a hook that owns the fetch and the mutations (`use-workout`, `use-home-data`). Components stay presentational.
+
+Writes are optimistic: update local state first, fire the request, surface an error if it fails. Weight and rep edits are debounced 500ms so typing doesn't write per keystroke — anything that ends a workout must flush pending writes first, or the last value typed is lost.
+
+Data loads once on mount. Screens unmount when you navigate, so going back refetches — but an action whose result another screen displays has to be awaited before navigating, or the refetch races the write.
 
 ## Code style
 
 - No comments unless genuinely necessary — let the code read for itself.
 - Single quotes, no semicolons, 100 char width (Prettier enforces it).
 - Import order: React, third-party, then `@/` paths.
+
+## Current state
+
+**Real:** auth, the workout screen (exercises, sets, editable names), the home screen's in-progress cards and recent sessions, and Profile (display name, join date, email).
+
+**Still placeholder:** History and Progress read `demo-data.ts`. The rest timer and units on Profile display real values but can't be changed yet.
+
+**Parked deliberately:** routines/templates (so a workout has no planned "Push day" to start from), the home stat cards (weekly volume, streak, milestone), and unit conversion for `profiles.units`.
+
+Two known lint warnings, both accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` setting state in an effect, which is the normal fetch-on-mount shape.
