@@ -100,3 +100,35 @@ export async function finishWorkout(id: string) {
     .eq('id', id)
   if (error) throw error
 }
+
+export type WorkoutSummary = {
+  id: string
+  name: string
+  started_at: string
+  finished_at: string | null
+  duration_seconds: number | null
+  volume_kg: number
+  completed_sets: number
+}
+
+export async function fetchSummaries(limit = 50) {
+  const { data, error } = await supabase
+    .from('workout_summaries')
+    .select('id, name, started_at, finished_at, duration_seconds, volume_kg, completed_sets')
+    .order('started_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return (data ?? []) as WorkoutSummary[]
+}
+
+export async function fetchActiveWorkouts() {
+  const { data, error } = await supabase
+    .from('workout_summaries')
+    .select('id, name, started_at, finished_at, duration_seconds, volume_kg, completed_sets')
+    .is('finished_at', null)
+    .order('started_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as WorkoutSummary[]
+}
