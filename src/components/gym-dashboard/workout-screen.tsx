@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
 import { useExerciseSuggestions } from '@/components/gym-dashboard/use-exercise-suggestions'
 import { useLastPerformance } from '@/components/gym-dashboard/use-last-performance'
@@ -18,15 +19,17 @@ function toNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-export default function WorkoutScreen({
-  workoutId,
-  onBack,
-}: {
-  workoutId: string
-  onBack: () => void
-}) {
+export default function WorkoutScreen() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { workoutId } = useParams()
+
+  // Deep links and refreshes start a fresh history stack, so there is nothing
+  // to go back to -- fall through to home rather than leaving the app.
+  const onBack = () => (location.key === 'default' ? navigate('/') : navigate(-1))
+
   const { workout, error, editSet, appendSet, deleteSet, appendExercise, rename, finish, remove } =
-    useWorkout(workoutId)
+    useWorkout(workoutId!)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
   const [finishing, setFinishing] = useState(false)

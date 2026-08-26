@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import {
   formatDay,
   formatDuration,
@@ -11,15 +12,11 @@ import { useHomeData } from '@/components/gym-dashboard/use-home-data'
 import WorkoutCard from '@/components/gym-dashboard/workout-card'
 import { Button } from '@/components/ui/button'
 
-export default function HomeScreen({
-  onOpen,
-  onViewAll,
-}: {
-  onOpen: (workoutId: string) => void
-  onViewAll: () => void
-}) {
+export default function HomeScreen() {
+  const navigate = useNavigate()
   const { active, recent, loading, error } = useHomeData()
   const [quote] = useState(randomQuote)
+  const onOpen = (workoutId: string) => navigate(`/workout/${workoutId}`)
 
   return (
     <>
@@ -58,7 +55,11 @@ export default function HomeScreen({
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold">Recent sessions</h2>
           {recent.length > 0 && (
-            <Button variant="ghost" onClick={onViewAll} className="text-muted-foreground">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/history')}
+              className="text-muted-foreground"
+            >
               View all <ChevronRight data-icon="inline-end" />
             </Button>
           )}

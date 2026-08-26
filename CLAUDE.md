@@ -87,6 +87,25 @@ Schema lives in `supabase/schema.sql` — the baseline, as a fresh project shoul
 - `exercises` is referenced `on delete restrict`: deleting one that appears in any workout fails rather than silently erasing history.
 - `exercise_last_sets` filters to **finished** workouts, so a workout in progress never matches itself and no "exclude current workout" filter is needed on the client.
 
+## Routing
+
+React Router (`react-router`, v8) with `BrowserRouter` in `main.tsx`. Routes live in `App.tsx`; `gym-dashboard.tsx` is the layout that renders `<Outlet />` plus the header and bottom nav.
+
+```
+/                    home
+/history
+/progress
+/profile
+/workout/:workoutId
+```
+
+The point of routing here is **swipe-back**: the OS edge-swipe gesture walks browser history, so one screen per history entry gets it for free. Nothing implements the gesture.
+
+- **`vercel.json` rewrites everything to `/index.html`.** Without it, refreshing on `/history` or opening a shared `/workout/:id` link 404s in production — and never locally, because Vite's dev server already falls back.
+- **The auth gate sits above the routes**, not inside them. Signing in on a deep link lands on that page, because the URL never changed — only what was rendered at it. Don't move the gate into a route.
+- **`onBack` checks `location.key === 'default'`** before `navigate(-1)`. On a deep link or refresh there is no history to go back to, and `-1` would leave the app.
+- Screens call `useNavigate()` themselves rather than taking `onOpen`-style props.
+
 ## Data loading
 
 Screens get their data from a hook that owns the fetch and the mutations (`use-workout`, `use-home-data`). Components stay presentational.

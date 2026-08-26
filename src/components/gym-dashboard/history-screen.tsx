@@ -1,8 +1,10 @@
 import { ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { formatDuration, formatMonth, formatVolume } from '@/components/gym-dashboard/format'
 import { useHistory } from '@/components/gym-dashboard/use-history'
 
-export default function HistoryScreen({ onOpen }: { onOpen: (workoutId: string) => void }) {
+export default function HistoryScreen() {
+  const navigate = useNavigate()
   const { workouts, loading, error } = useHistory()
 
   return (
@@ -34,7 +36,7 @@ export default function HistoryScreen({ onOpen }: { onOpen: (workoutId: string) 
             return (
               <button
                 key={workout.id}
-                onClick={() => onOpen(workout.id)}
+                onClick={() => navigate(`/workout/${workout.id}`)}
                 className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50"
               >
                 <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-muted">

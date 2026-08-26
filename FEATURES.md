@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Routing** — a URL per screen, so deep links work and the OS swipe-back gesture navigates
 - [x] **Delete a workout** — from the workout screen, behind an inline confirm
 - [x] **History screen on real data** — finished workouts, newest first, rows open the workout
 - [x] **Recent sessions capped at 3**, "View all" goes to History
