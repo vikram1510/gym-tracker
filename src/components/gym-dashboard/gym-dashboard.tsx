@@ -51,11 +51,11 @@ export default function GymDashboard() {
         {workoutId ? (
           <WorkoutScreen workoutId={workoutId} onBack={() => setWorkoutId(null)} />
         ) : screen === 'home' ? (
-          <HomeScreen onOpen={setWorkoutId} />
+          <HomeScreen onOpen={setWorkoutId} onViewAll={() => navigate('history')} />
         ) : screen === 'progress' ? (
           <ProgressScreen />
         ) : screen === 'history' ? (
-          <HistoryScreen />
+          <HistoryScreen onOpen={setWorkoutId} />
         ) : (
           <ProfileScreen />
         )}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchActiveWorkouts, fetchSummaries, type WorkoutSummary } from '@/lib/workouts'
+import { fetchActiveWorkouts, fetchFinishedWorkouts, type WorkoutSummary } from '@/lib/workouts'
 
 export function useHomeData() {
   const [active, setActive] = useState<WorkoutSummary[]>([])
@@ -9,12 +9,12 @@ export function useHomeData() {
 
   const load = useCallback(async () => {
     try {
-      const [activeWorkouts, summaries] = await Promise.all([
+      const [activeWorkouts, finished] = await Promise.all([
         fetchActiveWorkouts(),
-        fetchSummaries(),
+        fetchFinishedWorkouts(3),
       ])
       setActive(activeWorkouts)
-      setRecent(summaries.filter((summary) => summary.finished_at !== null))
+      setRecent(finished)
     } catch (cause) {
       setError((cause as Error).message)
     } finally {

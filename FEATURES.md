@@ -11,7 +11,6 @@ _Nothing in flight._
 
 In priority order.
 
-- [ ] **Recent sessions: show 3, "View all" goes to History** — the button exists but has no click handler, and `fetchSummaries()` defaults to 50 with no slice, so the home list is currently unbounded. Needs `onOpen`-style navigation passed into `HomeScreen`.
 - [ ] **Built-in rest timer** — starts when a set is ticked, counts down `profiles.rest_timer_seconds`. Needs a decision on whether it survives navigating away.
 - [ ] **Can't start a workout from Profile** — actually broader: the bottom nav is `md:hidden`, so on desktop there is no start button and no navigation at all beyond the header's profile icon. You can reach Profile and not get back. Needs a desktop nav, not just a button on Profile.
 - [ ] **Weight progression graph per exercise** — needs a new view (every completed set per exercise over time, not just the last one) and a chart library; none is installed. Feeds the Progress screen, which is still `demo-data.ts`.
@@ -19,6 +18,8 @@ In priority order.
 
 ## Done
 
+- [x] **History screen on real data** — finished workouts, newest first, rows open the workout
+- [x] **Recent sessions capped at 3**, "View all" goes to History
 - [x] **Exercise catalogue** — per-user `exercises` table, four seeded on signup, `get_or_create_exercise` RPC, picker ordered most-used first
 - [x] **Last session per exercise** — last set of your previous finished session, shown beside the exercise name
 - [x] **No more `completed` flag** — a set counts once it has weight and reps; tap-to-complete removed
@@ -36,7 +37,6 @@ In priority order.
 
 Roughly in the order it's worth doing.
 
-- [ ] **History screen on real data** — still reads `demo-data.ts`
 - [ ] **Exercise options menu** — the `⋯` on each exercise card does nothing; needs rename, delete, reorder
 - [ ] **Delete an exercise** — you can remove sets but not the exercise itself
 - [ ] **Prefill sets from last session** — the data is already there, just not written into new sets

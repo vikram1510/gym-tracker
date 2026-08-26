@@ -22,6 +22,10 @@ export function formatShortDate(iso: string) {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
+export function formatMonth(iso: string) {
+  return new Date(iso).toLocaleDateString('en-GB', { month: 'short' }).toUpperCase()
+}
+
 export function formatDuration(seconds: number | null) {
   if (!seconds || seconds < 60) return '—'
   return `${Math.round(seconds / 60)} min`

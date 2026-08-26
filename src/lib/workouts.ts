@@ -131,11 +131,12 @@ export type WorkoutSummary = {
 
 const summaryShape = 'id, name, started_at, finished_at, duration_seconds, volume_kg, logged_sets'
 
-export async function fetchSummaries(limit = 50) {
+export async function fetchFinishedWorkouts(limit = 100) {
   const { data, error } = await supabase
     .from('workout_summaries')
     .select(summaryShape)
-    .order('started_at', { ascending: false })
+    .not('finished_at', 'is', null)
+    .order('finished_at', { ascending: false })
     .limit(limit)
 
   if (error) throw error
