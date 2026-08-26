@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addExercise,
   addSet,
+  deleteWorkout,
   fetchWorkout,
   finishWorkout,
   getOrCreateExercise,
@@ -150,6 +151,20 @@ export function useWorkout(workoutId: string) {
     [workoutId],
   )
 
+  // The mirror of finish: pending writes are dropped rather than flushed,
+  // since the rows they would update are about to stop existing.
+  const remove = useCallback(async () => {
+    pendingWrites.current.forEach((entry) => clearTimeout(entry.timer))
+    pendingWrites.current.clear()
+    try {
+      await deleteWorkout(workoutId)
+      return true
+    } catch (cause) {
+      setError((cause as Error).message)
+      return false
+    }
+  }, [workoutId])
+
   // Anything still waiting on the debounce has to land before the workout is
   // closed, or the last weight typed is silently dropped.
   const finish = useCallback(async () => {
@@ -168,5 +183,6 @@ export function useWorkout(workoutId: string) {
     appendExercise,
     rename,
     finish,
+    remove,
   }
 }

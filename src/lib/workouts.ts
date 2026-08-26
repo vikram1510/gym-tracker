@@ -111,6 +111,13 @@ export async function removeSet(id: string) {
   if (error) throw error
 }
 
+// Cascades to workout_exercises and sets. The catalogue is untouched -- the
+// exercises stay, only this session's record of them goes.
+export async function deleteWorkout(id: string) {
+  const { error } = await supabase.from('workouts').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function finishWorkout(id: string) {
   const { error } = await supabase
     .from('workouts')

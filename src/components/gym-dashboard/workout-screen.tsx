@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, MoreHorizontal, Plus, X } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
 import { useExerciseSuggestions } from '@/components/gym-dashboard/use-exercise-suggestions'
 import { useLastPerformance } from '@/components/gym-dashboard/use-last-performance'
@@ -25,11 +25,13 @@ export default function WorkoutScreen({
   workoutId: string
   onBack: () => void
 }) {
-  const { workout, error, editSet, appendSet, deleteSet, appendExercise, rename, finish } =
+  const { workout, error, editSet, appendSet, deleteSet, appendExercise, rename, finish, remove } =
     useWorkout(workoutId)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
   const [finishing, setFinishing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const finished = Boolean(workout?.finished_at)
 
   const exerciseIds = useMemo(
@@ -231,6 +233,46 @@ export default function WorkoutScreen({
             <Plus data-icon="inline-start" />
             Add machine or exercise
           </Button>
+
+          {confirmingDelete ? (
+            <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="font-medium">Delete this workout?</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Every exercise and set in it goes too. This can't be undone.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <Button
+                  variant="destructive"
+                  disabled={deleting}
+                  className="h-11 flex-1 rounded-xl"
+                  onClick={async () => {
+                    setDeleting(true)
+                    if (await remove()) onBack()
+                    else setDeleting(false)
+                  }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={deleting}
+                  className="h-11 flex-1 rounded-xl"
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              className="mt-4 h-11 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmingDelete(true)}
+            >
+              <Trash2 data-icon="inline-start" />
+              Delete workout
+            </Button>
+          )}
         </div>
       )}
 

@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Delete a workout** — from the workout screen, behind an inline confirm
 - [x] **History screen on real data** — finished workouts, newest first, rows open the workout
 - [x] **Recent sessions capped at 3**, "View all" goes to History
 - [x] **Exercise catalogue** — per-user `exercises` table, four seeded on signup, `get_or_create_exercise` RPC, picker ordered most-used first
