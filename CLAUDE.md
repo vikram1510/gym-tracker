@@ -71,15 +71,21 @@ Use `cn()` from `@/lib/utils` whenever classes are conditional or arrive via pro
 
 ## Database
 
-Schema lives in `supabase/schema.sql`, run by hand in the SQL Editor. There is no migration tool — if the schema changes, update that file and apply it yourself.
+Schema lives in `supabase/schema.sql` — the baseline, as a fresh project should look. Changes since then are numbered files in `supabase/migrations/`. There is no migration tool; both are run by hand in the SQL Editor, and nothing tracks what has been applied.
 
-`workouts` → `workout_exercises` → `sets`, each cascading on delete, plus `profiles` and a `workout_summaries` view that computes volume and duration.
+**A schema change goes in both places**: a new numbered migration _and_ folded into `schema.sql`. Miss one and a new project drifts from the live one. See `supabase/migrations/README.md`.
+
+`workouts` → `workout_exercises` → `sets`, each cascading on delete, plus `profiles`, a per-user `exercises` catalogue, and three views (`workout_summaries`, `exercise_suggestions`, `exercise_last_sets`).
 
 - **RLS is on for every table, and must stay that way.** The publishable key is public, so anyone can query the API directly; policies are the only thing stopping them. Child tables inherit ownership through their parent workout rather than storing `user_id` again.
 - **Weights are stored in kilograms.** `profiles.units` is display-only. Never write a pound value into `weight_kg`.
 - **Ordering is explicit** via 0-based `position` columns. Row order from Postgres means nothing.
 - **Totals are computed, never stored** — volume and duration come from `workout_summaries`.
-- A trigger creates a `profiles` row on signup, so a logged-in user always has one. Accounts made before that trigger existed do not.
+- **A set counts once it has both a weight and reps.** There is no `completed` flag — it was removed. Every "did this happen" filter is `weight_kg is not null and reps is not null`, in the views and the app alike.
+- **Exercises are a per-user catalogue.** `workout_exercises` points at `exercises.id` and stores no name, so renaming an exercise renames it in every past workout too. Never insert into `exercises` directly — go through the `get_or_create_exercise(name)` RPC, which owns the dedupe. Uniqueness is `(user_id, lower(btrim(name)))`, so "Leg press" and "leg press " are one row.
+- **The signup trigger seeds a profile plus four exercises**, so the picker is never empty. There is no shared library — each user gets their own copies. Accounts made before that trigger existed have neither.
+- `exercises` is referenced `on delete restrict`: deleting one that appears in any workout fails rather than silently erasing history.
+- `exercise_last_sets` filters to **finished** workouts, so a workout in progress never matches itself and no "exclude current workout" filter is needed on the client.
 
 ## Data loading
 
@@ -97,10 +103,8 @@ Data loads once on mount. Screens unmount when you navigate, so going back refet
 
 ## Current state
 
-**Real:** auth, the workout screen (exercises, sets, editable names), the home screen's in-progress cards and recent sessions, and Profile (display name, join date, email).
+See `FEATURES.md` — what's done, what's next, and what's parked and why. Keep it ticked off as things land; it's the single source, don't restate it here.
 
-**Still placeholder:** History and Progress read `demo-data.ts`. The rest timer and units on Profile display real values but can't be changed yet.
-
-**Parked deliberately:** routines/templates (so a workout has no planned "Push day" to start from), the home stat cards (weekly volume, streak, milestone), and unit conversion for `profiles.units`.
+The traps worth knowing before touching anything: History and Progress still read `demo-data.ts`, and the `⋯` on each exercise card is a dead button.
 
 Two known lint warnings, both accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` setting state in an effect, which is the normal fetch-on-mount shape.
