@@ -8,6 +8,12 @@ import { formatDuration, formatTime } from '@/components/gym-dashboard/format'
 import EditableText from '@/components/gym-dashboard/editable-text'
 import LastPerformance from '@/components/gym-dashboard/last-performance'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
@@ -28,8 +34,18 @@ export default function WorkoutScreen() {
   // to go back to -- fall through to home rather than leaving the app.
   const onBack = () => (location.key === 'default' ? navigate('/') : navigate(-1))
 
-  const { workout, error, editSet, appendSet, deleteSet, appendExercise, rename, finish, remove } =
-    useWorkout(workoutId!)
+  const {
+    workout,
+    error,
+    editSet,
+    appendSet,
+    deleteSet,
+    deleteExercise,
+    appendExercise,
+    rename,
+    finish,
+    remove,
+  } = useWorkout(workoutId!)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
   const [finishing, setFinishing] = useState(false)
@@ -161,9 +177,23 @@ export default function WorkoutScreen() {
                     {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" aria-label="Exercise options">
-                  <MoreHorizontal />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label={`${exercise.name} options`}
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-auto min-w-44">
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => deleteExercise(exercise.id)}
+                    >
+                      <Trash2 />
+                      Delete exercise
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <div className="mt-5 flex flex-col gap-2">
                 {exercise.sets.map((set, setIndex) => (

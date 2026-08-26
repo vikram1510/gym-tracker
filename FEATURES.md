@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Delete an exercise** — from the `⋯` menu on the exercise card
 - [x] **Routing** — a URL per screen, so deep links work and the OS swipe-back gesture navigates
 - [x] **Delete a workout** — from the workout screen, behind an inline confirm
 - [x] **History screen on real data** — finished workouts, newest first, rows open the workout
@@ -39,8 +40,7 @@ In priority order.
 
 Roughly in the order it's worth doing.
 
-- [ ] **Exercise options menu** — the `⋯` on each exercise card does nothing; needs rename, delete, reorder
-- [ ] **Delete an exercise** — you can remove sets but not the exercise itself
+- [ ] **Rename and reorder exercises** — the `⋯` menu exists now and only holds Delete
 - [ ] **Prefill sets from last session** — the data is already there, just not written into new sets
 - [ ] **Editable rest timer** — Profile shows the real value but can't change it
 - [ ] **Units kg/lb** — `profiles.units` is stored and displayed, no conversion anywhere

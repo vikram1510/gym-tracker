@@ -85,6 +85,13 @@ export async function addExercise(
   return { ...(data as Omit<WorkoutExercise, 'name'>), name }
 }
 
+// Cascades to this exercise's sets. The catalogue row survives -- only its
+// place in this workout goes.
+export async function removeExercise(id: string) {
+  const { error } = await supabase.from('workout_exercises').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function addSet(
   workoutExerciseId: string,
   position: number,

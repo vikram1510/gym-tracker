@@ -6,12 +6,18 @@ import {
   fetchWorkout,
   finishWorkout,
   getOrCreateExercise,
+  removeExercise,
   removeSet,
   renameWorkout,
   updateSet,
   type Workout,
   type WorkoutSet,
 } from '@/lib/workouts'
+
+// Counting is not enough: deleting from the middle leaves gaps, and a count
+// would hand the next row a position that already exists.
+const nextPosition = (items: { position: number }[]) =>
+  items.reduce((max, item) => Math.max(max, item.position + 1), 0)
 
 export function useWorkout(workoutId: string) {
   const [workout, setWorkout] = useState<Workout | null>(null)
@@ -79,7 +85,7 @@ export function useWorkout(workoutId: string) {
     try {
       const created = await addSet(
         exercise.id,
-        exercise.sets.length,
+        nextPosition(exercise.sets),
         last?.weight_kg ?? null,
         last?.reps ?? null,
       )
@@ -114,6 +120,33 @@ export function useWorkout(workoutId: string) {
     removeSet(setId).catch((cause) => setError((cause as Error).message))
   }, [])
 
+  const deleteExercise = useCallback(
+    (workoutExerciseId: string) => {
+      const doomed = workout?.workout_exercises.find((item) => item.id === workoutExerciseId)
+      doomed?.sets.forEach((set) => {
+        for (const field of ['weight_kg', 'reps'] as const) {
+          const entry = pendingWrites.current.get(`${set.id}:${field}`)
+          if (!entry) continue
+          clearTimeout(entry.timer)
+          pendingWrites.current.delete(`${set.id}:${field}`)
+        }
+      })
+
+      setWorkout((current) =>
+        current
+          ? {
+              ...current,
+              workout_exercises: current.workout_exercises.filter(
+                (item) => item.id !== workoutExerciseId,
+              ),
+            }
+          : current,
+      )
+      removeExercise(workoutExerciseId).catch((cause) => setError((cause as Error).message))
+    },
+    [workout],
+  )
+
   const appendExercise = useCallback(
     async (name: string) => {
       if (!workout) return
@@ -123,7 +156,7 @@ export function useWorkout(workoutId: string) {
           workout.id,
           exerciseId,
           name,
-          workout.workout_exercises.length,
+          nextPosition(workout.workout_exercises),
         )
         const seeded = await Promise.all(
           [0, 1, 2].map((position) => addSet(created.id, position, null, null)),
@@ -180,6 +213,7 @@ export function useWorkout(workoutId: string) {
     editSet,
     appendSet,
     deleteSet,
+    deleteExercise,
     appendExercise,
     rename,
     finish,
