@@ -1,33 +1,38 @@
--- gym-tracker schema
--- Run in Supabase dashboard -> SQL Editor. Safe to run on an empty project.
+-- 002  exercise catalogue
+-- Applied:
 --
--- Conventions:
---   weights are stored in kilograms; `profiles.units` only controls display
---   ordering is explicit via `position` (0-based); creation time is not order
---   totals (volume, duration) are computed, never stored
---   a set counts once it has both a weight and reps; there is no done flag
+-- DESTRUCTIVE. Drops every workout, exercise and set. Run only because
+-- there were no real users yet -- there is no backfill and no way back.
+--
+-- What changes:
+--   * exercises become rows in a per-user catalogue, seeded with four on
+--     signup, instead of free text repeated on every workout
+--   * workout_exercises points at an exercise instead of storing its name,
+--     so renaming one renames it everywhere
+--   * sets lose `completed`; a set now counts once it has weight and reps
+--   * workout_summaries.completed_sets is renamed logged_sets to match
 
-create extension if not exists "pgcrypto";
+begin;
 
--- ---------------------------------------------------------------- profiles
+drop view if exists public.exercise_last_sets;
+drop view if exists public.exercise_suggestions;
+drop view if exists public.workout_summaries;
 
-create table public.profiles (
-  id uuid primary key references auth.users on delete cascade,
-  display_name text,
-  rest_timer_seconds integer not null default 90 check (rest_timer_seconds > 0),
-  units text not null default 'kg' check (units in ('kg', 'lb')),
-  created_at timestamptz not null default now()
-);
+drop index if exists public.workout_exercises_name_idx;
 
-alter table public.profiles enable row level security;
+-- Order matters: workout_exercises references exercises on delete restrict,
+-- so the child tables have to go first.
+drop table if exists public.sets;
+drop table if exists public.workout_exercises;
+drop table if exists public.workouts;
+drop table if exists public.exercises;
 
-create policy "own profile" on public.profiles
-  for all using (auth.uid() = id) with check (auth.uid() = id);
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
+drop function if exists public.get_or_create_exercise(text);
 
 -- --------------------------------------------------------------- exercises
 
--- Every user owns their own exercise list. There is no shared library: the
--- four below are copied into each new account so the picker is never empty.
 create table public.exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users on delete cascade,
@@ -35,8 +40,6 @@ create table public.exercises (
   created_at timestamptz not null default now()
 );
 
--- The uniqueness rule *is* the deduplication. "Leg press" and "leg press "
--- are the same exercise, so history never splits across spellings.
 create unique index exercises_user_name_idx
   on public.exercises (user_id, lower(btrim(name)));
 
@@ -45,8 +48,6 @@ alter table public.exercises enable row level security;
 create policy "own exercises" on public.exercises
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- A profile and a starter exercise list are created on signup, so the app
--- never has to handle a logged-in user with neither.
 create function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -71,9 +72,6 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Adding an exercise to a workout goes through here, so a name typed twice
--- resolves to the same row instead of quietly forking the history. Runs as
--- the caller, so RLS still decides whose list is touched.
 create function public.get_or_create_exercise(p_name text)
 returns uuid
 language plpgsql
@@ -98,6 +96,15 @@ begin
 end;
 $$;
 
+-- Existing accounts predate the seeding trigger, so give them the same four.
+insert into public.exercises (user_id, name)
+select u.id, seed.name
+from auth.users u
+cross join (
+  values ('Lat pulldown'), ('Leg press'), ('Seated row'), ('Shoulder press')
+) as seed(name)
+on conflict do nothing;
+
 -- ---------------------------------------------------------------- workouts
 
 create table public.workouts (
@@ -118,10 +125,6 @@ alter table public.workouts enable row level security;
 create policy "own workouts" on public.workouts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- ------------------------------------------------------- workout_exercises
-
--- Points at the catalogue rather than storing a name, so renaming an
--- exercise renames it everywhere, past workouts included.
 create table public.workout_exercises (
   id uuid primary key default gen_random_uuid(),
   workout_id uuid not null references public.workouts on delete cascade,
@@ -138,8 +141,6 @@ create index workout_exercises_exercise_idx
 
 alter table public.workout_exercises enable row level security;
 
--- Ownership is inherited through the parent workout rather than duplicating
--- user_id, so a workout can never disagree with its own exercises.
 create policy "own workout exercises" on public.workout_exercises
   for all using (
     exists (
@@ -152,8 +153,6 @@ create policy "own workout exercises" on public.workout_exercises
       where w.id = workout_id and w.user_id = auth.uid()
     )
   );
-
--- -------------------------------------------------------------------- sets
 
 create table public.sets (
   id uuid primary key default gen_random_uuid(),
@@ -188,8 +187,6 @@ create policy "own sets" on public.sets
 
 -- --------------------------------------------------------------- summaries
 
--- Feeds the history and progress screens. security_invoker means the view is
--- read as the calling user, so the policies above still apply.
 create view public.workout_summaries
 with (security_invoker = true)
 as
@@ -210,10 +207,6 @@ left join public.workout_exercises we on we.workout_id = w.id
 left join public.sets s on s.workout_exercise_id = we.id
 group by w.id;
 
--- --------------------------------------------------------- exercise lookup
-
--- The picker. Seeded exercises come back with times_used = 0, so they show
--- up but rank below anything actually trained.
 create view public.exercise_suggestions
 with (security_invoker = true)
 as
@@ -228,9 +221,6 @@ left join public.workout_exercises we on we.exercise_id = e.id
 left join public.workouts w on w.id = we.workout_id
 group by e.id;
 
--- The last logged set of the last finished session, per exercise -- the set
--- you finished on, not the heaviest. Only finished workouts count, so a
--- workout in progress never matches itself.
 create view public.exercise_last_sets
 with (security_invoker = true)
 as
@@ -247,4 +237,6 @@ join public.sets s on s.workout_exercise_id = we.id
 where w.finished_at is not null
   and s.weight_kg is not null
   and s.reps is not null
-order by we.exercise_id, w.finished_at desc, s.position desc;
+order by we.exercise_id, w.finished_at desc, s.weight_kg desc, s.reps desc;
+
+commit;

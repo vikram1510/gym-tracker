@@ -1,8 +1,11 @@
-import { useState } from 'react'
-import { ArrowLeft, Check, MoreHorizontal, Plus, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowLeft, MoreHorizontal, Plus, X } from 'lucide-react'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
+import { useExerciseSuggestions } from '@/components/gym-dashboard/use-exercise-suggestions'
+import { useLastPerformance } from '@/components/gym-dashboard/use-last-performance'
 import { formatDuration, formatTime } from '@/components/gym-dashboard/format'
 import EditableText from '@/components/gym-dashboard/editable-text'
+import LastPerformance from '@/components/gym-dashboard/last-performance'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -22,24 +25,31 @@ export default function WorkoutScreen({
   workoutId: string
   onBack: () => void
 }) {
-  const {
-    workout,
-    error,
-    toggleSet,
-    editSet,
-    appendSet,
-    deleteSet,
-    appendExercise,
-    rename,
-    finish,
-  } = useWorkout(workoutId)
+  const { workout, error, editSet, appendSet, deleteSet, appendExercise, rename, finish } =
+    useWorkout(workoutId)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
   const [finishing, setFinishing] = useState(false)
   const finished = Boolean(workout?.finished_at)
 
-  const submitExercise = () => {
-    const name = newName.trim()
+  const exerciseIds = useMemo(
+    () => workout?.workout_exercises.map((exercise) => exercise.exercise_id) ?? [],
+    [workout],
+  )
+  const lastPerformance = useLastPerformance(exerciseIds)
+  const catalogue = useExerciseSuggestions(showPicker)
+
+  const suggestions = useMemo(() => {
+    const query = newName.trim().toLowerCase()
+    const added = new Set(exerciseIds)
+    return catalogue
+      .filter((exercise) => !added.has(exercise.id))
+      .filter((exercise) => exercise.name.toLowerCase().includes(query))
+      .slice(0, 6)
+  }, [catalogue, newName, exerciseIds])
+
+  const submitExercise = (value = newName) => {
+    const name = value.trim()
     if (!name) return
     appendExercise(name)
     setNewName('')
@@ -49,11 +59,7 @@ export default function WorkoutScreen({
   const volume =
     workout?.workout_exercises.reduce(
       (total, exercise) =>
-        total +
-        exercise.sets.reduce(
-          (sum, set) => (set.completed ? sum + (set.weight_kg ?? 0) * (set.reps ?? 0) : sum),
-          0,
-        ),
+        total + exercise.sets.reduce((sum, set) => sum + (set.weight_kg ?? 0) * (set.reps ?? 0), 0),
       0,
     ) ?? 0
 
@@ -141,8 +147,11 @@ export default function WorkoutScreen({
                     dotColors[exerciseIndex % dotColors.length],
                   )}
                 />
-                <div className="flex-1">
-                  <h2 className="font-semibold">{exercise.name}</h2>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h2 className="font-semibold">{exercise.name}</h2>
+                    <LastPerformance performance={lastPerformance(exercise.exercise_id)} />
+                  </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {exercise.sets.length} {exercise.sets.length === 1 ? 'set' : 'sets'}
                   </p>
@@ -155,55 +164,37 @@ export default function WorkoutScreen({
                 {exercise.sets.map((set, setIndex) => (
                   <div
                     key={set.id}
-                    className={cn(
-                      'flex min-h-12 items-center gap-2 rounded-xl border px-3 transition-colors',
-                      set.completed ? 'border-accent bg-accent/15' : 'border-border bg-background',
-                    )}
+                    className="flex min-h-12 items-center gap-2 rounded-xl border border-border bg-background px-3"
                   >
-                    <button
-                      onClick={() => toggleSet(exercise.id, set)}
-                      className="flex flex-1 items-center gap-3 text-left"
-                      aria-label={`${exercise.name} set ${setIndex + 1}`}
-                    >
-                      <span className="w-8 font-mono text-xs text-muted-foreground">
-                        {setIndex + 1}
-                      </span>
-                      <span className="flex flex-1 items-center gap-1.5 text-sm">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          aria-label={`${exercise.name} set ${setIndex + 1} weight`}
-                          value={set.weight_kg ?? ''}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) =>
-                            editSet(exercise.id, set.id, 'weight_kg', toNumber(event.target.value))
-                          }
-                          className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                        />
-                        <span className="text-muted-foreground">kg ×</span>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min="0"
-                          aria-label={`${exercise.name} set ${setIndex + 1} reps`}
-                          value={set.reps ?? ''}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={(event) =>
-                            editSet(exercise.id, set.id, 'reps', toNumber(event.target.value))
-                          }
-                          className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                        />
-                        <span className="text-muted-foreground">reps</span>
-                      </span>
-                      {set.completed ? (
-                        <Check className="text-accent" />
-                      ) : (
-                        <span className="hidden text-xs text-muted-foreground sm:inline">
-                          Tap to complete
-                        </span>
-                      )}
-                    </button>
+                    <span className="w-8 font-mono text-xs text-muted-foreground">
+                      {setIndex + 1}
+                    </span>
+                    <span className="flex flex-1 items-center gap-1.5 text-sm">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        aria-label={`${exercise.name} set ${setIndex + 1} weight`}
+                        value={set.weight_kg ?? ''}
+                        onChange={(event) =>
+                          editSet(exercise.id, set.id, 'weight_kg', toNumber(event.target.value))
+                        }
+                        className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                      />
+                      <span className="text-muted-foreground">kg ×</span>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        aria-label={`${exercise.name} set ${setIndex + 1} reps`}
+                        value={set.reps ?? ''}
+                        onChange={(event) =>
+                          editSet(exercise.id, set.id, 'reps', toNumber(event.target.value))
+                        }
+                        className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                      />
+                      <span className="text-muted-foreground">reps</span>
+                    </span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -278,18 +269,18 @@ export default function WorkoutScreen({
               className="mt-5 h-12 rounded-xl bg-background px-4 text-sm"
             />
             <div className="mt-3 flex flex-wrap gap-2">
-              {['Lat pulldown', 'Leg press', 'Seated row', 'Shoulder press'].map((name) => (
+              {suggestions.map((exercise) => (
                 <button
-                  key={name}
-                  onClick={() => setNewName(name)}
+                  key={exercise.id}
+                  onClick={() => setNewName(exercise.name)}
                   className="rounded-full border border-border px-3 py-2 text-xs text-muted-foreground hover:bg-muted"
                 >
-                  {name}
+                  {exercise.name}
                 </button>
               ))}
             </div>
             <Button
-              onClick={submitExercise}
+              onClick={() => submitExercise()}
               disabled={!newName.trim()}
               className="mt-5 w-full rounded-xl"
             >

@@ -41,7 +41,7 @@ export default function HomeScreen({ onOpen }: { onOpen: (workoutId: string) => 
             title={workout.name}
             badge={`from ${formatTime(workout.started_at)}`}
             footerLabel="So far"
-            footerValue={`${workout.completed_sets} ${workout.completed_sets === 1 ? 'set' : 'sets'} · ${formatVolume(workout.volume_kg)}`}
+            footerValue={`${workout.logged_sets} ${workout.logged_sets === 1 ? 'set' : 'sets'} · ${formatVolume(workout.volume_kg)}`}
             actionLabel="Resume"
             onAction={() => onOpen(workout.id)}
           />

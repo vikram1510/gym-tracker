@@ -10,6 +10,18 @@ export function formatDay(iso: string) {
   return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+export function formatShortDate(iso: string) {
+  const date = new Date(iso)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+  if (sameDay(date, today)) return 'Today'
+  if (sameDay(date, yesterday)) return 'Yesterday'
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 export function formatDuration(seconds: number | null) {
   if (!seconds || seconds < 60) return '—'
   return `${Math.round(seconds / 60)} min`

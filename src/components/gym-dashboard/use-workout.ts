@@ -4,6 +4,7 @@ import {
   addSet,
   fetchWorkout,
   finishWorkout,
+  getOrCreateExercise,
   removeSet,
   renameWorkout,
   updateSet,
@@ -53,15 +54,6 @@ export function useWorkout(workoutId: string) {
           : current,
       ),
     [],
-  )
-
-  const toggleSet = useCallback(
-    (exerciseId: string, set: WorkoutSet) => {
-      const completed = !set.completed
-      patchSet(exerciseId, set.id, { completed })
-      updateSet(set.id, { completed }).catch((cause) => setError(cause.message))
-    },
-    [patchSet],
   )
 
   // Typing a weight fires on every keystroke, so the write trails the UI by a
@@ -125,7 +117,13 @@ export function useWorkout(workoutId: string) {
     async (name: string) => {
       if (!workout) return
       try {
-        const created = await addExercise(workout.id, name, workout.workout_exercises.length)
+        const exerciseId = await getOrCreateExercise(name)
+        const created = await addExercise(
+          workout.id,
+          exerciseId,
+          name,
+          workout.workout_exercises.length,
+        )
         const seeded = await Promise.all(
           [0, 1, 2].map((position) => addSet(created.id, position, null, null)),
         )
@@ -164,7 +162,6 @@ export function useWorkout(workoutId: string) {
   return {
     workout,
     error,
-    toggleSet,
     editSet,
     appendSet,
     deleteSet,
