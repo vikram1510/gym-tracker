@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { fetchActiveWorkouts, fetchFinishedWorkouts, type WorkoutSummary } from '@/lib/workouts'
+import { withRetry } from '@/lib/retry'
 
 export function useHomeData() {
   const [active, setActive] = useState<WorkoutSummary[]>([])
@@ -8,15 +9,17 @@ export function useHomeData() {
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    setError(null)
+    setLoading(true)
     try {
-      const [activeWorkouts, finished] = await Promise.all([
-        fetchActiveWorkouts(),
-        fetchFinishedWorkouts(3),
-      ])
+      const [activeWorkouts, finished] = await withRetry(() =>
+        Promise.all([fetchActiveWorkouts(), fetchFinishedWorkouts(3)]),
+      )
       setActive(activeWorkouts)
       setRecent(finished)
     } catch (cause) {
-      setError((cause as Error).message)
+      console.error(cause)
+      setError("Couldn't load your workouts.")
     } finally {
       setLoading(false)
     }

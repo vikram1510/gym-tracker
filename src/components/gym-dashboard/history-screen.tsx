@@ -1,11 +1,12 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RotateCw } from 'lucide-react'
 import { useNavigate } from 'react-router'
+import { Button } from '@/components/ui/button'
 import { formatDuration, formatMonth, formatVolume } from '@/components/gym-dashboard/format'
 import { useHistory } from '@/components/gym-dashboard/use-history'
 
 export default function HistoryScreen() {
   const navigate = useNavigate()
-  const { workouts, loading, error } = useHistory()
+  const { workouts, loading, error, reload } = useHistory()
 
   return (
     <section className="pt-8">
@@ -15,9 +16,16 @@ export default function HistoryScreen() {
       <h1 className="mt-2 text-4xl font-semibold tracking-[-0.06em]">History</h1>
 
       {error && (
-        <p role="alert" className="mt-4 text-sm text-destructive">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+            <RotateCw data-icon="inline-start" />
+            {loading ? 'Retrying…' : 'Retry'}
+          </Button>
+        </div>
       )}
 
       {loading ? (

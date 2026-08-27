@@ -126,4 +126,6 @@ See `FEATURES.md` — what's done, what's next, and what's parked and why. Keep 
 
 The traps worth knowing before touching anything: History and Progress still read `demo-data.ts`, and the `⋯` on each exercise card is a dead button.
 
-Two known lint warnings, both accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` setting state in an effect, which is the normal fetch-on-mount shape.
+Three known lint warnings, all accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` / `use-history.ts` setting state in an effect, which is the normal fetch-on-mount shape.
+
+**Fetches retry once before surfacing an error** (`withRetry` in `src/lib/retry.ts`), and error states carry a Retry button. In a standalone PWA there is no browser reload, so an unrecoverable error screen is a dead end — every failure needs a way out.

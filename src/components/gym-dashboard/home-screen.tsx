@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RotateCw } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import {
   formatDay,
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const { active, recent, loading, error } = useHomeData()
+  const { active, recent, loading, error, reload } = useHomeData()
   const [quote] = useState(randomQuote)
   const onOpen = (workoutId: string) => navigate(`/workout/${workoutId}`)
 
@@ -66,9 +66,16 @@ export default function HomeScreen() {
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
+          >
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+              <RotateCw data-icon="inline-start" />
+              {loading ? 'Retrying…' : 'Retry'}
+            </Button>
+          </div>
         )}
 
         {loading ? (
