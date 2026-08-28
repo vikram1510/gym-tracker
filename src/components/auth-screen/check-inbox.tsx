@@ -4,17 +4,32 @@ import Logo from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
-export default function CheckInbox({ email, onBack }: { email: string; onBack: () => void }) {
+export default function CheckInbox({
+  email,
+  variant = 'signup',
+  onBack,
+}: {
+  email: string
+  variant?: 'signup' | 'recovery'
+  onBack: () => void
+}) {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
+  const recovery = variant === 'recovery'
 
   const resend = async () => {
     setResending(true)
-    await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
+    if (recovery) {
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+    } else {
+      await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: window.location.origin },
+      })
+    }
     setResending(false)
     setResent(true)
   }
@@ -28,9 +43,18 @@ export default function CheckInbox({ email, onBack }: { email: string; onBack: (
         </div>
         <h1 className="mt-6 text-4xl font-semibold tracking-[-0.06em]">Check your inbox</h1>
         <p className="mt-3 leading-6 text-muted-foreground">
-          We sent a confirmation link to{' '}
-          <span className="font-medium text-foreground">{email}</span>. Click it to activate your
-          account, then come back here to sign in.
+          {recovery ? (
+            <>
+              We sent a reset link to <span className="font-medium text-foreground">{email}</span>.
+              Click it and you can choose a new password.
+            </>
+          ) : (
+            <>
+              We sent a confirmation link to{' '}
+              <span className="font-medium text-foreground">{email}</span>. Click it to activate
+              your account, then come back here to sign in.
+            </>
+          )}
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
           Nothing yet? It can take a minute — check your spam folder too.

@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Forgot password** — reset link by email, then a new-password screen at `/reset-password`
 - [x] **Delete an exercise** — from the `⋯` menu on the exercise card
 - [x] **Routing** — a URL per screen, so deep links work and the OS swipe-back gesture navigates
 - [x] **Delete a workout** — from the workout screen, behind an inline confirm

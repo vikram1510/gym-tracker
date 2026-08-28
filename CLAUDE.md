@@ -63,7 +63,9 @@ Use `cn()` from `@/lib/utils` whenever classes are conditional or arrive via pro
 - Client in `src/lib/supabase.ts`, session state in `src/lib/use-session.ts`, queries in `src/lib/workouts.ts`.
 - `src/App.tsx` gates on session: no config → `MissingConfig`, no session → `AuthScreen`, otherwise the dashboard.
 - Config comes from `.env.local` (gitignored): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
-- Auth is email + password. Google can be added later without migrating anything — it attaches as another identity on the same user.
+- Auth is email + password, with password reset. Google can be added later without migrating anything — it attaches as another identity on the same user.
+
+**A recovery link signs the user in before they reach the form.** On the implicit flow the token arrives in the URL hash and supabase-js creates a session from it, so `/reset-password` renders as an authenticated route and only has to call `updateUser({ password })` — there is no token to pass along. If that route did not exist, clicking "reset my password" would silently drop the user on the home screen, logged in, with no form.
 
 **Env vars are inlined at build time.** Vite folds `import.meta.env` into constants, so a build without them dead-code-eliminates whole branches — the app silently shrinks to just the `MissingConfig` screen. If a deploy renders "Supabase not configured", the env vars were missing at build, and setting them requires a rebuild. Vercel needs both vars set for production, as Config (not Secret — the publishable key ships in the bundle anyway) across all environments.
 

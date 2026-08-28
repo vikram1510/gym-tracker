@@ -7,6 +7,7 @@ import ProfileScreen from '@/components/gym-dashboard/profile-screen'
 import ProgressScreen from '@/components/gym-dashboard/progress-screen'
 import WorkoutScreen from '@/components/gym-dashboard/workout-screen'
 import MissingConfig from '@/components/missing-config'
+import ResetPassword from '@/components/reset-password'
 import { supabaseConfigured } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 
@@ -22,6 +23,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="reset-password" element={<ResetPassword />} />
       <Route element={<GymDashboard />}>
         <Route index element={<HomeScreen />} />
         <Route path="history" element={<HistoryScreen />} />
