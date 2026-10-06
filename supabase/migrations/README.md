@@ -23,6 +23,7 @@ Write changes so re-running them is harmless (`if not exists`,
 | `001_exercise_last_sets.sql`   | Last-session weight/reps per exercise (index + view)           |
 | `002_exercise_catalogue.sql`   | **Destructive.** Per-user `exercises` table, drops `completed` |
 | `003_last_set_by_position.sql` | `exercise_last_sets` picks the last set, not the heaviest      |
+| `004_timed_exercises.sql`      | `exercises.kind` + `sets.duration_seconds`; views count both   |
 
 `002` supersedes `001` entirely — it drops and rebuilds those objects. If you
 never ran `001`, skip it and run `002` alone.

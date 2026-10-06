@@ -5,7 +5,8 @@
 --   weights are stored in kilograms; `profiles.units` only controls display
 --   ordering is explicit via `position` (0-based); creation time is not order
 --   totals (volume, duration) are computed, never stored
---   a set counts once it has both a weight and reps; there is no done flag
+--   a set counts once it has both a weight and reps -- or, for a timed
+--     exercise, a duration; there is no done flag
 
 create extension if not exists "pgcrypto";
 
@@ -27,11 +28,13 @@ create policy "own profile" on public.profiles
 -- --------------------------------------------------------------- exercises
 
 -- Every user owns their own exercise list. There is no shared library: the
--- four below are copied into each new account so the picker is never empty.
+-- five below are copied into each new account so the picker is never empty.
+-- `kind` decides how its sets are logged: weight x reps, or seconds.
 create table public.exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users on delete cascade,
   name text not null,
+  kind text not null default 'reps' check (kind in ('reps', 'time')),
   created_at timestamptz not null default now()
 );
 
@@ -56,12 +59,13 @@ begin
   insert into public.profiles (id, display_name)
   values (new.id, split_part(new.email, '@', 1));
 
-  insert into public.exercises (user_id, name)
+  insert into public.exercises (user_id, name, kind)
   values
-    (new.id, 'Lat pulldown'),
-    (new.id, 'Leg press'),
-    (new.id, 'Seated row'),
-    (new.id, 'Shoulder press');
+    (new.id, 'Lat pulldown', 'reps'),
+    (new.id, 'Leg press', 'reps'),
+    (new.id, 'Seated row', 'reps'),
+    (new.id, 'Shoulder press', 'reps'),
+    (new.id, 'Plank', 'time');
 
   return new;
 end;
@@ -74,7 +78,7 @@ create trigger on_auth_user_created
 -- Adding an exercise to a workout goes through here, so a name typed twice
 -- resolves to the same row instead of quietly forking the history. Runs as
 -- the caller, so RLS still decides whose list is touched.
-create function public.get_or_create_exercise(p_name text)
+create function public.get_or_create_exercise(p_name text, p_kind text default 'reps')
 returns uuid
 language plpgsql
 set search_path = ''
@@ -82,8 +86,8 @@ as $$
 declare
   v_id uuid;
 begin
-  insert into public.exercises (user_id, name)
-  values (auth.uid(), btrim(p_name))
+  insert into public.exercises (user_id, name, kind)
+  values (auth.uid(), btrim(p_name), p_kind)
   on conflict (user_id, lower(btrim(name))) do nothing
   returning id into v_id;
 
@@ -161,6 +165,7 @@ create table public.sets (
   position integer not null,
   weight_kg numeric(6, 2) check (weight_kg >= 0),
   reps integer check (reps >= 0),
+  duration_seconds integer check (duration_seconds >= 0),
   created_at timestamptz not null default now()
 );
 
@@ -186,6 +191,27 @@ create policy "own sets" on public.sets
     )
   );
 
+-- ------------------------------------------------------------ set counting
+
+-- "Did this set happen" depends on the exercise, and is asked by both views
+-- below. One definition, so the two can never drift apart.
+create function public.set_counts(
+  p_kind text,
+  p_weight_kg numeric,
+  p_reps integer,
+  p_duration_seconds integer
+)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when p_kind = 'time' then p_duration_seconds is not null
+    else p_weight_kg is not null and p_reps is not null
+  end;
+$$;
+
 -- --------------------------------------------------------------- summaries
 
 -- Feeds the history and progress screens. security_invoker means the view is
@@ -204,9 +230,12 @@ select
     sum(s.weight_kg * s.reps) filter (where s.weight_kg is not null and s.reps is not null),
     0
   ) as volume_kg,
-  count(s.id) filter (where s.weight_kg is not null and s.reps is not null) as logged_sets
+  count(s.id) filter (
+    where public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
+  ) as logged_sets
 from public.workouts w
 left join public.workout_exercises we on we.workout_id = w.id
+left join public.exercises e on e.id = we.exercise_id
 left join public.sets s on s.workout_exercise_id = we.id
 group by w.id;
 
@@ -221,6 +250,7 @@ select
   e.id,
   e.user_id,
   e.name,
+  e.kind,
   count(we.id) as times_used,
   max(w.started_at) as last_used_at
 from public.exercises e
@@ -240,11 +270,12 @@ select distinct on (we.exercise_id)
   w.id as workout_id,
   w.finished_at as performed_at,
   s.weight_kg,
-  s.reps
+  s.reps,
+  s.duration_seconds
 from public.workouts w
 join public.workout_exercises we on we.workout_id = w.id
+join public.exercises e on e.id = we.exercise_id
 join public.sets s on s.workout_exercise_id = we.id
 where w.finished_at is not null
-  and s.weight_kg is not null
-  and s.reps is not null
+  and public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
 order by we.exercise_id, w.finished_at desc, s.position desc;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ArrowLeft, MoreHorizontal, Plus, Trash2, X } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { useWorkout } from '@/components/gym-dashboard/use-workout'
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type { ExerciseKind } from '@/lib/workouts'
 
 const dotColors = ['bg-primary', 'bg-accent', 'bg-secondary']
 
@@ -48,6 +49,7 @@ export default function WorkoutScreen() {
   } = useWorkout(workoutId!)
   const [showPicker, setShowPicker] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newKind, setNewKind] = useState<ExerciseKind>('reps')
   const [finishing, setFinishing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -69,11 +71,28 @@ export default function WorkoutScreen() {
       .slice(0, 6)
   }, [catalogue, newName, exerciseIds])
 
+  // A name already in the catalogue keeps its own kind: get_or_create_exercise
+  // ignores the toggle for an existing row, so letting the toggle win here
+  // would render reps boxes over a timed exercise until the next refetch. The
+  // match rule mirrors the database's uniqueness index.
+  const findInCatalogue = useCallback(
+    (name: string) => {
+      const query = name.trim().toLowerCase()
+      if (!query) return null
+      return catalogue.find((exercise) => exercise.name.trim().toLowerCase() === query) ?? null
+    },
+    [catalogue],
+  )
+
+  const matched = useMemo(() => findInCatalogue(newName), [findInCatalogue, newName])
+  const kind = matched?.kind ?? newKind
+
   const submitExercise = (value = newName) => {
     const name = value.trim()
     if (!name) return
-    appendExercise(name)
+    appendExercise(name, findInCatalogue(name)?.kind ?? newKind)
     setNewName('')
+    setNewKind('reps')
     setShowPicker(false)
   }
 
@@ -205,30 +224,59 @@ export default function WorkoutScreen() {
                       {setIndex + 1}
                     </span>
                     <span className="flex flex-1 items-center gap-1.5 text-sm">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        aria-label={`${exercise.name} set ${setIndex + 1} weight`}
-                        value={set.weight_kg ?? ''}
-                        onChange={(event) =>
-                          editSet(exercise.id, set.id, 'weight_kg', toNumber(event.target.value))
-                        }
-                        className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                      />
-                      <span className="text-muted-foreground">kg ×</span>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        aria-label={`${exercise.name} set ${setIndex + 1} reps`}
-                        value={set.reps ?? ''}
-                        onChange={(event) =>
-                          editSet(exercise.id, set.id, 'reps', toNumber(event.target.value))
-                        }
-                        className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
-                      />
-                      <span className="text-muted-foreground">reps</span>
+                      {exercise.kind === 'time' ? (
+                        <>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            aria-label={`${exercise.name} set ${setIndex + 1} seconds`}
+                            value={set.duration_seconds ?? ''}
+                            onChange={(event) =>
+                              editSet(
+                                exercise.id,
+                                set.id,
+                                'duration_seconds',
+                                toNumber(event.target.value),
+                              )
+                            }
+                            className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                          />
+                          <span className="text-muted-foreground">sec</span>
+                        </>
+                      ) : (
+                        <>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            aria-label={`${exercise.name} set ${setIndex + 1} weight`}
+                            value={set.weight_kg ?? ''}
+                            onChange={(event) =>
+                              editSet(
+                                exercise.id,
+                                set.id,
+                                'weight_kg',
+                                toNumber(event.target.value),
+                              )
+                            }
+                            className="w-16 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                          />
+                          <span className="text-muted-foreground">kg ×</span>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            aria-label={`${exercise.name} set ${setIndex + 1} reps`}
+                            value={set.reps ?? ''}
+                            onChange={(event) =>
+                              editSet(exercise.id, set.id, 'reps', toNumber(event.target.value))
+                            }
+                            className="w-12 rounded-md bg-card px-2 text-right font-mono text-xs md:text-xs"
+                          />
+                          <span className="text-muted-foreground">reps</span>
+                        </>
+                      )}
                     </span>
                     <Button
                       variant="ghost"
@@ -343,6 +391,31 @@ export default function WorkoutScreen() {
               placeholder="e.g. Lat pulldown machine"
               className="mt-5 h-12 rounded-xl bg-background px-4 text-sm"
             />
+            <div className="mt-3 flex gap-1 rounded-xl border border-border p-1">
+              {(['reps', 'time'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={Boolean(matched)}
+                  aria-pressed={kind === option}
+                  onClick={() => setNewKind(option)}
+                  className={cn(
+                    'flex-1 rounded-lg px-3 py-2 text-xs transition-colors disabled:opacity-60',
+                    kind === option
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground enabled:hover:bg-muted',
+                  )}
+                >
+                  {option === 'reps' ? 'Weight × reps' : 'Time'}
+                </button>
+              ))}
+            </div>
+            {matched && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {matched.name} is already in your list, logged in{' '}
+                {matched.kind === 'time' ? 'seconds' : 'weight × reps'}.
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
               {suggestions.map((exercise) => (
                 <button

@@ -10,9 +10,13 @@ import {
   removeSet,
   renameWorkout,
   updateSet,
+  type ExerciseKind,
   type Workout,
   type WorkoutSet,
 } from '@/lib/workouts'
+
+const setFields = ['weight_kg', 'reps', 'duration_seconds'] as const
+type SetField = (typeof setFields)[number]
 
 // Counting is not enough: deleting from the middle leaves gaps, and a count
 // would hand the next row a position that already exists.
@@ -66,7 +70,7 @@ export function useWorkout(workoutId: string) {
   // Typing a weight fires on every keystroke, so the write trails the UI by a
   // beat rather than hitting the database per character.
   const editSet = useCallback(
-    (exerciseId: string, setId: string, field: 'weight_kg' | 'reps', value: number | null) => {
+    (exerciseId: string, setId: string, field: SetField, value: number | null) => {
       patchSet(exerciseId, setId, { [field]: value })
 
       const key = `${setId}:${field}`
@@ -88,6 +92,7 @@ export function useWorkout(workoutId: string) {
         nextPosition(exercise.sets),
         last?.weight_kg ?? null,
         last?.reps ?? null,
+        last?.duration_seconds ?? null,
       )
       setWorkout((current) =>
         current
@@ -124,7 +129,7 @@ export function useWorkout(workoutId: string) {
     (workoutExerciseId: string) => {
       const doomed = workout?.workout_exercises.find((item) => item.id === workoutExerciseId)
       doomed?.sets.forEach((set) => {
-        for (const field of ['weight_kg', 'reps'] as const) {
+        for (const field of setFields) {
           const entry = pendingWrites.current.get(`${set.id}:${field}`)
           if (!entry) continue
           clearTimeout(entry.timer)
@@ -148,18 +153,19 @@ export function useWorkout(workoutId: string) {
   )
 
   const appendExercise = useCallback(
-    async (name: string) => {
+    async (name: string, kind: ExerciseKind) => {
       if (!workout) return
       try {
-        const exerciseId = await getOrCreateExercise(name)
+        const exerciseId = await getOrCreateExercise(name, kind)
         const created = await addExercise(
           workout.id,
           exerciseId,
           name,
+          kind,
           nextPosition(workout.workout_exercises),
         )
         const seeded = await Promise.all(
-          [0, 1, 2].map((position) => addSet(created.id, position, null, null)),
+          [0, 1, 2].map((position) => addSet(created.id, position, null, null, null)),
         )
         setWorkout((current) =>
           current

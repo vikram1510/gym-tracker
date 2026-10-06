@@ -1,16 +1,20 @@
 import { supabase } from '@/lib/supabase'
 
+export type ExerciseKind = 'reps' | 'time'
+
 export type WorkoutSet = {
   id: string
   position: number
   weight_kg: number | null
   reps: number | null
+  duration_seconds: number | null
 }
 
 export type WorkoutExercise = {
   id: string
   exercise_id: string
   name: string
+  kind: ExerciseKind
   position: number
   sets: WorkoutSet[]
 }
@@ -23,11 +27,13 @@ export type Workout = {
   workout_exercises: WorkoutExercise[]
 }
 
-const exerciseShape =
-  'id, position, exercise_id, exercises(name), sets(id, position, weight_kg, reps)'
+const setShape = 'id, position, weight_kg, reps, duration_seconds'
+const exerciseShape = `id, position, exercise_id, exercises(name, kind), sets(${setShape})`
 const workoutShape = `id, name, started_at, finished_at, workout_exercises(${exerciseShape})`
 
-type RawExercise = Omit<WorkoutExercise, 'name'> & { exercises: { name: string } | null }
+type RawExercise = Omit<WorkoutExercise, 'name' | 'kind'> & {
+  exercises: { name: string; kind: ExerciseKind } | null
+}
 type RawWorkout = Omit<Workout, 'workout_exercises'> & { workout_exercises: RawExercise[] }
 
 function sortWorkout(workout: RawWorkout): Workout {
@@ -36,6 +42,7 @@ function sortWorkout(workout: RawWorkout): Workout {
     .map(({ exercises, ...exercise }) => ({
       ...exercise,
       name: exercises?.name ?? 'Exercise',
+      kind: exercises?.kind ?? 'reps',
       sets: [...exercise.sets].sort((a, b) => a.position - b.position),
     }))
   return { ...workout, workout_exercises: exercises }
@@ -63,8 +70,11 @@ export async function fetchWorkout(id: string) {
 
 // Resolves a typed name to a catalogue row, creating it the first time. The
 // database owns the dedupe, so "Leg press" and "leg press " land on one row.
-export async function getOrCreateExercise(name: string) {
-  const { data, error } = await supabase.rpc('get_or_create_exercise', { p_name: name })
+export async function getOrCreateExercise(name: string, kind: ExerciseKind) {
+  const { data, error } = await supabase.rpc('get_or_create_exercise', {
+    p_name: name,
+    p_kind: kind,
+  })
   if (error) throw error
   return data as string
 }
@@ -73,16 +83,17 @@ export async function addExercise(
   workoutId: string,
   exerciseId: string,
   name: string,
+  kind: ExerciseKind,
   position: number,
 ) {
   const { data, error } = await supabase
     .from('workout_exercises')
     .insert({ workout_id: workoutId, exercise_id: exerciseId, position })
-    .select('id, position, exercise_id, sets(id, position, weight_kg, reps)')
+    .select(`id, position, exercise_id, sets(${setShape})`)
     .single()
 
   if (error) throw error
-  return { ...(data as Omit<WorkoutExercise, 'name'>), name }
+  return { ...(data as Omit<WorkoutExercise, 'name' | 'kind'>), name, kind }
 }
 
 // Cascades to this exercise's sets. The catalogue row survives -- only its
@@ -97,11 +108,18 @@ export async function addSet(
   position: number,
   weightKg: number | null,
   reps: number | null,
+  durationSeconds: number | null,
 ) {
   const { data, error } = await supabase
     .from('sets')
-    .insert({ workout_exercise_id: workoutExerciseId, position, weight_kg: weightKg, reps })
-    .select('id, position, weight_kg, reps')
+    .insert({
+      workout_exercise_id: workoutExerciseId,
+      position,
+      weight_kg: weightKg,
+      reps,
+      duration_seconds: durationSeconds,
+    })
+    .select(setShape)
     .single()
 
   if (error) throw error
@@ -176,6 +194,7 @@ export async function renameWorkout(id: string, name: string) {
 export type ExerciseSuggestion = {
   id: string
   name: string
+  kind: ExerciseKind
   times_used: number
   last_used_at: string | null
 }
@@ -183,7 +202,7 @@ export type ExerciseSuggestion = {
 export async function fetchExerciseSuggestions() {
   const { data, error } = await supabase
     .from('exercise_suggestions')
-    .select('id, name, times_used, last_used_at')
+    .select('id, name, kind, times_used, last_used_at')
     .order('times_used', { ascending: false })
     .order('last_used_at', { ascending: false, nullsFirst: false })
     .order('name')
@@ -195,8 +214,9 @@ export async function fetchExerciseSuggestions() {
 export type LastPerformance = {
   exercise_id: string
   performed_at: string
-  weight_kg: number
-  reps: number
+  weight_kg: number | null
+  reps: number | null
+  duration_seconds: number | null
 }
 
 export async function fetchLastPerformances(exerciseIds: string[]) {
@@ -205,7 +225,7 @@ export async function fetchLastPerformances(exerciseIds: string[]) {
 
   const { data, error } = await supabase
     .from('exercise_last_sets')
-    .select('exercise_id, performed_at, weight_kg, reps')
+    .select('exercise_id, performed_at, weight_kg, reps, duration_seconds')
     .in('exercise_id', ids)
 
   if (error) throw error

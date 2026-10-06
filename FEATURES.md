@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Timed exercises** — planks and holds logged in seconds. `exercises.kind` set by a toggle in the add sheet, `sets.duration_seconds` on each set. Volume is weight-only by design, so a plank session reads 0 kg
 - [x] **Delete an exercise** — from the `⋯` menu on the exercise card
 - [x] **Routing** — a URL per screen, so deep links work and the OS swipe-back gesture navigates
 - [x] **Delete a workout** — from the workout screen, behind an inline confirm
@@ -41,6 +42,7 @@ In priority order.
 Roughly in the order it's worth doing.
 
 - [ ] **Rename and reorder exercises** — the `⋯` menu exists now and only holds Delete
+- [ ] **Switch an exercise between reps and time** — fixed at creation today. Flipping it strands every set logged in the other shape, so it needs a decision on what happens to that history before it gets a menu item
 - [ ] **Prefill sets from last session** — the data is already there, just not written into new sets
 - [ ] **Editable rest timer** — Profile shows the real value but can't change it
 - [ ] **Units kg/lb** — `profiles.units` is stored and displayed, no conversion anywhere

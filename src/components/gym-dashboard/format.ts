@@ -31,6 +31,14 @@ export function formatDuration(seconds: number | null) {
   return `${Math.round(seconds / 60)} min`
 }
 
+export function formatSeconds(seconds: number | null) {
+  if (seconds === null) return '—'
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const rest = seconds % 60
+  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`
+}
+
 export function formatVolume(kg: number) {
   return `${Math.round(kg).toLocaleString()} kg`
 }
