@@ -1,5 +1,5 @@
 -- 004  timed exercises
--- Applied:
+-- Applied: 2026-10-06
 --
 -- Planks and holds are logged in seconds, not weight x reps. The kind lives
 -- on the catalogue row rather than per workout: a plank is always a plank.
