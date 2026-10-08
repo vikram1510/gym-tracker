@@ -1,5 +1,5 @@
 -- 003  exercise totals
--- Applied:
+-- Applied: 2026-10-08
 --
 -- A second chart per exercise: how much you did that day, not just your best
 -- set. Volume in kg for a weighted exercise, total reps for a bodyweight one,
