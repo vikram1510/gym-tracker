@@ -7,10 +7,13 @@ what has been applied, so record it in the file header when you run it.
 `../schema.sql` is the baseline: the whole schema as it should look on an
 empty project. Everything numbered here happened after it.
 
-**The log is empty.** Migrations `001`–`004` were deleted when workouts were
-replaced by days — the change was destructive anyway, so the whole database
-was rebuilt from `schema.sql` rather than migrated. Numbering restarts at
-`001`.
+**Numbering restarted.** The original `001`–`004` were deleted when workouts
+were replaced by days — that change was destructive anyway, so the whole
+database was rebuilt from `schema.sql` rather than migrated.
+
+| File                      | What it does                                                  |
+| ------------------------- | ------------------------------------------------------------- |
+| `001_bodyweight_reps.sql` | Third exercise kind; renames the old `'reps'` to `'weighted'` |
 
 **When the schema changes:**
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Check, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import LastPerformance from '@/components/exercise-card/last-performance'
 import SetRow, { type SetField } from '@/components/exercise-card/set-row'
-import { loggedSets, setVolume, summariseSets } from '@/components/exercise-card/summarise'
+import { setChips, setVolume } from '@/components/exercise-card/summarise'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -36,7 +36,7 @@ export default function ExerciseCard({
   const [open, setOpen] = useState(false)
   const editing = alwaysEditing || open
 
-  const done = loggedSets(exercise.kind, exercise.sets)
+  const chips = setChips(exercise.kind, exercise.sets)
   const volume = setVolume(exercise.sets)
 
   const header = (
@@ -49,14 +49,10 @@ export default function ExerciseCard({
             {formatTime(exercise.created_at)}
           </span>
         </div>
-        {editing ? (
+        {editing && (
           <div className="mt-1">
             <LastPerformance performance={lastPerformance} />
           </div>
-        ) : (
-          <p className="mt-1 truncate font-mono text-sm text-muted-foreground">
-            {done.length > 0 ? summariseSets(exercise.kind, exercise.sets) : 'Nothing logged'}
-          </p>
         )}
       </div>
     </div>
@@ -70,11 +66,22 @@ export default function ExerciseCard({
         className="w-full rounded-[1.5rem] border border-border bg-card p-5 text-left transition-colors hover:bg-muted/40"
       >
         {header}
-        <div className="mt-3 flex items-center justify-between pl-6 text-xs text-muted-foreground">
-          <span>
-            {done.length} {done.length === 1 ? 'set' : 'sets'}
-          </span>
-          <span className="flex items-center gap-2 font-mono">
+        <div className="mt-3 flex items-end justify-between gap-3 pl-6">
+          {chips.length > 0 ? (
+            <span className="flex flex-wrap gap-2.5">
+              {chips.map((chip, index) => (
+                <span
+                  key={index}
+                  className="rounded-lg bg-muted px-2 py-1 font-mono text-xs text-foreground"
+                >
+                  {chip}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Nothing logged</span>
+          )}
+          <span className="flex shrink-0 items-center gap-2 pb-1 font-mono text-xs text-muted-foreground">
             {volume > 0 && formatVolume(volume)}
             <Pencil className="size-3.5" />
           </span>

@@ -17,10 +17,11 @@ insert into public.exercises (user_id, name, kind)
 select u.id, seed.name, seed.kind
 from auth.users u
 cross join (values
-  ('Lat pulldown', 'reps'),
-  ('Leg press', 'reps'),
-  ('Seated row', 'reps'),
-  ('Shoulder press', 'reps'),
+  ('Lat pulldown', 'weighted'),
+  ('Leg press', 'weighted'),
+  ('Seated row', 'weighted'),
+  ('Shoulder press', 'weighted'),
+  ('Pull-up', 'reps'),
   ('Plank', 'time')
 ) as seed(name, kind)
 on conflict do nothing;

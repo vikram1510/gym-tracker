@@ -6,6 +6,12 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { ExerciseKind } from '@/lib/log'
 
+const kindLabels: Record<ExerciseKind, string> = {
+  weighted: 'Weight × reps',
+  reps: 'Reps only',
+  time: 'Time',
+}
+
 export default function ExercisePicker({
   open,
   dayLabel,
@@ -47,7 +53,7 @@ export default function ExercisePicker({
     if (!trimmed) return
     onPick(trimmed, findInCatalogue(trimmed)?.kind ?? newKind)
     setName('')
-    setNewKind('reps')
+    setNewKind('weighted')
     onClose()
   }
 
@@ -81,7 +87,7 @@ export default function ExercisePicker({
         />
 
         <div className="mt-3 flex gap-1 rounded-xl border border-border p-1">
-          {(['reps', 'time'] as const).map((option) => (
+          {(['weighted', 'reps', 'time'] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -95,15 +101,15 @@ export default function ExercisePicker({
                   : 'text-muted-foreground enabled:hover:bg-muted',
               )}
             >
-              {option === 'reps' ? 'Weight × reps' : 'Time'}
+              {kindLabels[option]}
             </button>
           ))}
         </div>
 
         {matched && (
           <p className="mt-2 text-xs text-muted-foreground">
-            {matched.name} is already in your list, logged in{' '}
-            {matched.kind === 'time' ? 'seconds' : 'weight × reps'}.
+            {matched.name} is already in your list, logged as{' '}
+            {kindLabels[matched.kind].toLowerCase()}.
           </p>
         )}
 

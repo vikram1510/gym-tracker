@@ -30,13 +30,14 @@ create policy "own profile" on public.profiles
 -- --------------------------------------------------------------- exercises
 
 -- Every user owns their own exercise list. There is no shared library: the
--- five below are copied into each new account so the picker is never empty.
--- `kind` decides how its sets are logged: weight x reps, or seconds.
+-- six below are copied into each new account so the picker is never empty.
+-- `kind` decides how its sets are logged: weight x reps, reps alone, or
+-- seconds.
 create table public.exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users on delete cascade,
   name text not null,
-  kind text not null default 'reps' check (kind in ('reps', 'time')),
+  kind text not null default 'weighted' check (kind in ('weighted', 'reps', 'time')),
   created_at timestamptz not null default now()
 );
 
@@ -63,10 +64,11 @@ begin
 
   insert into public.exercises (user_id, name, kind)
   values
-    (new.id, 'Lat pulldown', 'reps'),
-    (new.id, 'Leg press', 'reps'),
-    (new.id, 'Seated row', 'reps'),
-    (new.id, 'Shoulder press', 'reps'),
+    (new.id, 'Lat pulldown', 'weighted'),
+    (new.id, 'Leg press', 'weighted'),
+    (new.id, 'Seated row', 'weighted'),
+    (new.id, 'Shoulder press', 'weighted'),
+    (new.id, 'Pull-up', 'reps'),
     (new.id, 'Plank', 'time');
 
   return new;
@@ -81,7 +83,7 @@ create trigger on_auth_user_created
 -- the same row instead of quietly forking the history. Runs as the caller,
 -- so RLS still decides whose list is touched. The kind only applies when the
 -- row is created: an exercise that already exists keeps the kind it has.
-create function public.get_or_create_exercise(p_name text, p_kind text default 'reps')
+create function public.get_or_create_exercise(p_name text, p_kind text default 'weighted')
 returns uuid
 language plpgsql
 set search_path = ''
@@ -183,6 +185,7 @@ set search_path = ''
 as $$
   select case
     when p_kind = 'time' then p_duration_seconds is not null
+    when p_kind = 'reps' then p_reps is not null
     else p_weight_kg is not null and p_reps is not null
   end;
 $$;

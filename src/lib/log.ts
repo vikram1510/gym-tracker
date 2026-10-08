@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { DayKey } from '@/lib/day'
 
-export type ExerciseKind = 'reps' | 'time'
+export type ExerciseKind = 'weighted' | 'reps' | 'time'
 
 export type LoggedSet = {
   id: string
@@ -44,7 +44,7 @@ function sortLogged(rows: RawLoggedExercise[]): LoggedExercise[] {
     .map(({ exercises, ...row }) => ({
       ...row,
       name: exercises?.name ?? 'Exercise',
-      kind: exercises?.kind ?? 'reps',
+      kind: exercises?.kind ?? 'weighted',
       sets: [...row.sets].sort((a, b) => a.position - b.position),
     }))
 }

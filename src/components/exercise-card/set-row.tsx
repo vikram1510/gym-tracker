@@ -49,16 +49,20 @@ export default function SetRow({
           </>
         ) : (
           <>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              aria-label={`${label} weight`}
-              value={set.weight_kg ?? ''}
-              onChange={(event) => onEdit('weight_kg', toNumber(event.target.value))}
-              className={`w-16 ${inputClass}`}
-            />
-            <span className="text-muted-foreground">kg ×</span>
+            {kind === 'weighted' && (
+              <>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  aria-label={`${label} weight`}
+                  value={set.weight_kg ?? ''}
+                  onChange={(event) => onEdit('weight_kg', toNumber(event.target.value))}
+                  className={`w-16 ${inputClass}`}
+                />
+                <span className="text-muted-foreground">kg ×</span>
+              </>
+            )}
             <Input
               type="number"
               inputMode="numeric"

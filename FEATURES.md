@@ -18,6 +18,7 @@ In priority order.
 
 ## Done
 
+- [x] **Bodyweight exercises** — reps with no weight, for pull-ups and press-ups. Third `exercises.kind`; the old `'reps'` kind was renamed `'weighted'` to free the name
 - [x] **Days, not workouts** — the workout concept is gone. Nothing to start, finish or name; exercises are logged against a date. Home is one day with `‹ ›` chevrons, History is every day with cards editable in place. The database was rebuilt from scratch rather than migrated
 - [x] **Timed exercises** — planks and holds logged in seconds. `exercises.kind` set by a toggle in the add sheet, `sets.duration_seconds` on each set. Volume is weight-only by design, so a plank session reads 0 kg
 - [x] **Delete an exercise** — from the `⋯` menu on the exercise card
