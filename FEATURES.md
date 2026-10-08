@@ -17,7 +17,7 @@ In priority order.
 
 ## Done
 
-- [x] **Progress graphs** — a line per exercise of its best set over time: heaviest weight, longest hold or most reps, depending on the kind. Hand-rolled SVG, no chart library
+- [x] **Progress graphs** — two charts per exercise: its best set over time (heaviest weight, most reps or longest hold) and that day's total (volume, total reps or total seconds), depending on the kind. An exercise logged twice in a day counts once, at its better entry. Hand-rolled SVG, no chart library
 - [x] **Bodyweight exercises** — reps with no weight, for pull-ups and press-ups. Third `exercises.kind`; the old `'reps'` kind was renamed `'weighted'` to free the name
 - [x] **Days, not workouts** — the workout concept is gone. Nothing to start, finish or name; exercises are logged against a date. Home is one day with `‹ ›` chevrons, History is every day with cards editable in place. The database was rebuilt from scratch rather than migrated
 - [x] **Timed exercises** — planks and holds logged in seconds. `exercises.kind` set by a toggle in the add sheet, `sets.duration_seconds` on each set. Volume is weight-only by design, so a plank session reads 0 kg

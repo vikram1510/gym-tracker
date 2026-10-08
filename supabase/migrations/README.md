@@ -11,10 +11,11 @@ empty project. Everything numbered here happened after it.
 were replaced by days — that change was destructive anyway, so the whole
 database was rebuilt from `schema.sql` rather than migrated.
 
-| File                        | What it does                                                  |
-| --------------------------- | ------------------------------------------------------------- |
-| `001_bodyweight_reps.sql`   | Third exercise kind; renames the old `'reps'` to `'weighted'` |
-| `002_exercise_progress.sql` | `exercise_progress` view — best set per exercise per day      |
+| File                        | What it does                                                    |
+| --------------------------- | --------------------------------------------------------------- |
+| `001_bodyweight_reps.sql`   | Third exercise kind; renames the old `'reps'` to `'weighted'`   |
+| `002_exercise_progress.sql` | `exercise_progress` view — best set per exercise per day        |
+| `003_exercise_totals.sql`   | Per-day totals on `exercise_progress` (volume / reps / seconds) |
 
 **When the schema changes:**
 

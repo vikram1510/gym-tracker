@@ -217,25 +217,50 @@ join public.exercises e on e.id = le.exercise_id
 left join public.sets s on s.logged_exercise_id = le.id
 group by le.user_id, le.logged_on;
 
--- Feeds the progress screen: one point per exercise per day, holding that
--- day's best set in each dimension. Which one is plotted depends on the
--- exercise's kind. Grouped by day rather than by logged_exercises row, so
--- training something twice in a day gives one point: the better of the two.
+-- Feeds the progress screen: one point per exercise per day, holding both
+-- that day's best set and its totals. Which columns are plotted depends on
+-- the exercise's kind.
+--
+-- Two stages, because an exercise logged twice in a day must give one point,
+-- not two. The inner query totals each entry; the outer takes the better
+-- entry rather than adding them, so a double session reads as your best go
+-- at it rather than as improvement.
 create view public.exercise_progress
 with (security_invoker = true)
 as
+with per_entry as (
+  select
+    le.user_id,
+    le.exercise_id,
+    le.logged_on,
+    le.id,
+    max(s.weight_kg) as best_weight_kg,
+    max(s.reps) as best_reps,
+    max(s.duration_seconds) as best_seconds,
+    coalesce(
+      sum(s.weight_kg * s.reps) filter (where s.weight_kg is not null and s.reps is not null),
+      0
+    ) as total_volume_kg,
+    coalesce(sum(s.reps), 0) as total_reps,
+    coalesce(sum(s.duration_seconds), 0) as total_seconds
+  from public.logged_exercises le
+  join public.exercises e on e.id = le.exercise_id
+  join public.sets s on s.logged_exercise_id = le.id
+  where public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
+  group by le.user_id, le.exercise_id, le.logged_on, le.id
+)
 select
-  le.user_id,
-  le.exercise_id,
-  le.logged_on,
-  max(s.weight_kg) as best_weight_kg,
-  max(s.reps) as best_reps,
-  max(s.duration_seconds) as best_seconds
-from public.logged_exercises le
-join public.exercises e on e.id = le.exercise_id
-join public.sets s on s.logged_exercise_id = le.id
-where public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
-group by le.user_id, le.exercise_id, le.logged_on;
+  user_id,
+  exercise_id,
+  logged_on,
+  max(best_weight_kg) as best_weight_kg,
+  max(best_reps) as best_reps,
+  max(best_seconds) as best_seconds,
+  max(total_volume_kg) as total_volume_kg,
+  max(total_reps) as total_reps,
+  max(total_seconds) as total_seconds
+from per_entry
+group by user_id, exercise_id, logged_on;
 
 -- --------------------------------------------------------- exercise lookup
 

@@ -188,12 +188,17 @@ export type ProgressPoint = {
   best_weight_kg: number | null
   best_reps: number | null
   best_seconds: number | null
+  total_volume_kg: number
+  total_reps: number
+  total_seconds: number
 }
 
 export async function fetchExerciseProgress(exerciseId: string) {
   const { data, error } = await supabase
     .from('exercise_progress')
-    .select('logged_on, best_weight_kg, best_reps, best_seconds')
+    .select(
+      'logged_on, best_weight_kg, best_reps, best_seconds, total_volume_kg, total_reps, total_seconds',
+    )
     .eq('exercise_id', exerciseId)
     .order('logged_on')
 

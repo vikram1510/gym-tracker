@@ -52,5 +52,14 @@ export function useProgress() {
 
   const exercise = exercises.find((item) => item.id === selected) ?? null
 
-  return { exercises, exercise, points, selected, setSelected, loading, error, reload: load }
+  return {
+    exercises,
+    exercise,
+    points,
+    selected,
+    setSelected,
+    loading,
+    error,
+    reload: load,
+  }
 }
