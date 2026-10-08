@@ -183,6 +183,24 @@ export async function fetchExerciseSuggestions() {
   return (data ?? []) as ExerciseSuggestion[]
 }
 
+export type ProgressPoint = {
+  logged_on: DayKey
+  best_weight_kg: number | null
+  best_reps: number | null
+  best_seconds: number | null
+}
+
+export async function fetchExerciseProgress(exerciseId: string) {
+  const { data, error } = await supabase
+    .from('exercise_progress')
+    .select('logged_on, best_weight_kg, best_reps, best_seconds')
+    .eq('exercise_id', exerciseId)
+    .order('logged_on')
+
+  if (error) throw error
+  return (data ?? []) as ProgressPoint[]
+}
+
 export type LastPerformance = {
   exercise_id: string
   performed_on: DayKey

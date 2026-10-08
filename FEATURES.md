@@ -13,11 +13,11 @@ In priority order.
 
 - [ ] **Built-in rest timer** — starts when a set is ticked, counts down `profiles.rest_timer_seconds`. Needs a decision on whether it survives navigating away.
 - [ ] **Can't start a workout from Profile** — actually broader: the bottom nav is `md:hidden`, so on desktop there is no start button and no navigation at all beyond the header's profile icon. You can reach Profile and not get back. Needs a desktop nav, not just a button on Profile.
-- [ ] **Weight progression graph per exercise** — needs a new view (every completed set per exercise over time, not just the last one) and a chart library; none is installed. Feeds the Progress screen, which is still `demo-data.ts`.
 - [ ] **Google sign-in** — the code is a button and one `signInWithOAuth` call; the real work is dashboard-side (Google Cloud OAuth client, then Authentication → Providers in Supabase). Worth testing whether an existing email/password account with the same address links to it or ends up a second user.
 
 ## Done
 
+- [x] **Progress graphs** — a line per exercise of its best set over time: heaviest weight, longest hold or most reps, depending on the kind. Hand-rolled SVG, no chart library
 - [x] **Bodyweight exercises** — reps with no weight, for pull-ups and press-ups. Third `exercises.kind`; the old `'reps'` kind was renamed `'weighted'` to free the name
 - [x] **Days, not workouts** — the workout concept is gone. Nothing to start, finish or name; exercises are logged against a date. Home is one day with `‹ ›` chevrons, History is every day with cards editable in place. The database was rebuilt from scratch rather than migrated
 - [x] **Timed exercises** — planks and holds logged in seconds. `exercises.kind` set by a toggle in the add sheet, `sets.duration_seconds` on each set. Volume is weight-only by design, so a plank session reads 0 kg

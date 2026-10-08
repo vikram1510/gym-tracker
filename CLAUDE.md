@@ -136,8 +136,10 @@ Data loads once on mount. Screens unmount when you navigate, so going back refet
 
 See `FEATURES.md` — what's done, what's next, and what's parked and why. Keep it ticked off as things land; it's the single source, don't restate it here.
 
-The trap worth knowing before touching anything: Progress is still hardcoded placeholder numbers.
+No placeholder data is left — every screen reads the database.
 
-Three known lint warnings, all accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` / `use-history.ts` setting state in an effect, which is the normal fetch-on-mount shape.
+**Charts are hand-rolled SVG** (`progress-chart.tsx`), no charting library. One series per chart, so no legend; the heading names it. Colours are the `primary` token rather than `--chart-1..5`, which are still shadcn's untouched greyscale — the token is defined separately for light and dark, so neither mode is an automatic flip of the other.
+
+Four known lint warnings, all accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-day.ts` / `use-history.ts` / `use-progress.ts` setting state in an effect, which is the normal fetch-on-mount shape.
 
 **Fetches retry once before surfacing an error** (`withRetry` in `src/lib/retry.ts`), and error states carry a Retry button. In a standalone PWA there is no browser reload, so an unrecoverable error screen is a dead end — every failure needs a way out.
