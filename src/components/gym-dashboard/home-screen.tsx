@@ -1,116 +1,154 @@
 import { useState } from 'react'
-import { ChevronRight, RotateCw } from 'lucide-react'
-import { useNavigate } from 'react-router'
-import {
-  formatDay,
-  formatDuration,
-  formatTime,
-  formatVolume,
-} from '@/components/gym-dashboard/format'
-import { randomQuote } from '@/components/gym-dashboard/quotes'
-import { useHomeData } from '@/components/gym-dashboard/use-home-data'
-import WorkoutCard from '@/components/gym-dashboard/workout-card'
+import { ChevronLeft, ChevronRight, Plus, RotateCw } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
+import ExerciseCard from '@/components/exercise-card/exercise-card'
+import ExercisePicker from '@/components/gym-dashboard/exercise-picker'
+import { useDay } from '@/components/gym-dashboard/use-day'
+import { useLastPerformance } from '@/components/gym-dashboard/use-last-performance'
 import { Button } from '@/components/ui/button'
+import { isFuture, isToday, shiftDay, todayKey } from '@/lib/day'
+import { formatDayLabel, formatVolume } from '@/lib/format'
+import { setVolume } from '@/components/exercise-card/summarise'
+
+const dotColors = ['bg-primary', 'bg-accent', 'bg-secondary']
 
 export default function HomeScreen() {
   const navigate = useNavigate()
-  const { active, recent, loading, error, reload } = useHomeData()
-  const [quote] = useState(randomQuote)
-  const onOpen = (workoutId: string) => navigate(`/workout/${workoutId}`)
+  const { date } = useParams()
+  const [params, setParams] = useSearchParams()
+  const day = date ?? todayKey()
+
+  const {
+    rows,
+    loading,
+    error,
+    reload,
+    editSet,
+    appendSet,
+    deleteSet,
+    deleteExercise,
+    addExercise,
+  } = useDay(day)
+  const lastPerformance = useLastPerformance(day)
+  const [pickerFallback, setPickerFallback] = useState(false)
+
+  // The nav's + button opens the sheet through the URL, so it can target the
+  // day on screen without the layout having to know which one that is -- and
+  // back closes the sheet rather than leaving the page.
+  const pickerOpen = params.has('add') || pickerFallback
+  const closePicker = () => {
+    setPickerFallback(false)
+    if (params.has('add')) {
+      params.delete('add')
+      setParams(params, { replace: true })
+    }
+  }
+
+  const goTo = (next: string) => navigate(isToday(next) ? '/' : `/day/${next}`)
+  const volume = rows.reduce((total, exercise) => total + setVolume(exercise.sets), 0)
 
   return (
-    <>
-      <section className="flex flex-col gap-5 pt-6 md:pt-12">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <span className="size-2 rounded-full bg-accent" />
-          {new Date().toLocaleDateString([], {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </div>
-        <h1 className="text-balance text-4xl font-semibold tracking-[-0.06em] md:text-6xl">
-          Build the body
-          <br className="hidden md:block" /> you came for
-        </h1>
-        <p className="max-w-md text-pretty leading-6 text-muted-foreground">{quote}</p>
-      </section>
+    <section className="pt-6 md:pt-10">
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Previous day"
+          onClick={() => goTo(shiftDay(day, -1))}
+        >
+          <ChevronLeft />
+        </Button>
 
-      <section className="grid gap-4 pt-8 md:grid-cols-2">
-        {active.map((workout) => (
-          <WorkoutCard
-            key={workout.id}
-            label="In progress"
-            title={workout.name}
-            badge={`from ${formatTime(workout.started_at)}`}
-            footerLabel="So far"
-            footerValue={`${workout.logged_sets} ${workout.logged_sets === 1 ? 'set' : 'sets'} · ${formatVolume(workout.volume_kg)}`}
-            actionLabel="Resume"
-            onAction={() => onOpen(workout.id)}
-          />
-        ))}
-      </section>
-
-      <section className="pt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Recent sessions</h2>
-          {recent.length > 0 && (
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/history')}
-              className="text-muted-foreground"
-            >
-              View all <ChevronRight data-icon="inline-end" />
-            </Button>
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold tracking-[-0.04em] md:text-3xl">
+            {formatDayLabel(day)}
+          </h1>
+          {volume > 0 && (
+            <p className="mt-1 font-mono text-xs text-muted-foreground">{formatVolume(volume)}</p>
           )}
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
-          >
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
-              <RotateCw data-icon="inline-start" />
-              {loading ? 'Retrying…' : 'Retry'}
-            </Button>
-          </div>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Next day"
+          disabled={isFuture(shiftDay(day, 1))}
+          onClick={() => goTo(shiftDay(day, 1))}
+        >
+          <ChevronRight />
+        </Button>
+      </div>
 
+      {!isToday(day) && (
+        <div className="mt-2 flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => goTo(todayKey())}
+          >
+            Back to today
+          </Button>
+        </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+            <RotateCw data-icon="inline-start" />
+            {loading ? 'Retrying…' : 'Retry'}
+          </Button>
+        </div>
+      )}
+
+      <div className="mt-8 flex flex-col gap-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : recent.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="rounded-[1.75rem] border border-dashed border-border p-8 text-center">
-            <p className="font-medium">No sessions yet</p>
+            <p className="font-medium">Nothing logged {isToday(day) ? 'today' : 'this day'}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Finish your first workout and it will show up here.
+              Add an exercise and it will show up here.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border overflow-hidden rounded-[1.75rem] border border-border bg-card">
-            {recent.map((workout) => (
-              <button
-                key={workout.id}
-                onClick={() => onOpen(workout.id)}
-                className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/50"
-              >
-                <span className="size-3 shrink-0 rounded-full bg-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{workout.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {formatDay(workout.started_at)} · {formatDuration(workout.duration_seconds)}
-                  </p>
-                </div>
-                <span className="hidden font-mono text-xs text-muted-foreground sm:block">
-                  {formatVolume(workout.volume_kg)}
-                </span>
-                <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
+          rows.map((exercise, index) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              dotColor={dotColors[index % dotColors.length]}
+              lastPerformance={lastPerformance(exercise.exercise_id)}
+              alwaysEditing
+              onEditSet={(setId, field, value) => editSet(exercise.id, setId, field, value)}
+              onAddSet={() => appendSet(exercise)}
+              onRemoveSet={(setId) => deleteSet(exercise.id, setId)}
+              onRemove={() => deleteExercise(exercise.id)}
+            />
+          ))
         )}
-      </section>
-    </>
+
+        {/* The nav's + does this on mobile; that nav is md:hidden, so desktop
+            needs its own button or there is no way to log anything. */}
+        <Button
+          variant="outline"
+          className="hidden min-h-14 w-full rounded-2xl border-dashed md:flex"
+          onClick={() => setPickerFallback(true)}
+        >
+          <Plus data-icon="inline-start" />
+          Add exercise
+        </Button>
+      </div>
+
+      <ExercisePicker
+        open={pickerOpen}
+        dayLabel={formatDayLabel(day)}
+        onClose={closePicker}
+        onPick={(name, kind) => void addExercise(name, kind)}
+      />
+    </section>
   )
 }

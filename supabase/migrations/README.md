@@ -7,6 +7,11 @@ what has been applied, so record it in the file header when you run it.
 `../schema.sql` is the baseline: the whole schema as it should look on an
 empty project. Everything numbered here happened after it.
 
+**The log is empty.** Migrations `001`–`004` were deleted when workouts were
+replaced by days — the change was destructive anyway, so the whole database
+was rebuilt from `schema.sql` rather than migrated. Numbering restarts at
+`001`.
+
 **When the schema changes:**
 
 1. Add the next numbered file with just the change
@@ -18,12 +23,16 @@ Both places, every time — otherwise a new project and the live one drift.
 Write changes so re-running them is harmless (`if not exists`,
 `create or replace`), because nothing stops you running one twice.
 
-| File                           | What it does                                                   |
-| ------------------------------ | -------------------------------------------------------------- |
-| `001_exercise_last_sets.sql`   | Last-session weight/reps per exercise (index + view)           |
-| `002_exercise_catalogue.sql`   | **Destructive.** Per-user `exercises` table, drops `completed` |
-| `003_last_set_by_position.sql` | `exercise_last_sets` picks the last set, not the heaviest      |
-| `004_timed_exercises.sql`      | `exercises.kind` + `sets.duration_seconds`; views count both   |
+## Rebuilding from scratch
 
-`002` supersedes `001` entirely — it drops and rebuilds those objects. If you
-never ran `001`, skip it and run `002` alone.
+Three files in `../`, in this order:
+
+| File                      | What it does                                            |
+| ------------------------- | ------------------------------------------------------- |
+| `reset.sql`               | Drops everything. Leaves `auth.users`, so you stay in   |
+| `schema.sql`              | Builds the whole schema fresh                           |
+| `seed-existing-users.sql` | Profile + starter exercises for accounts that pre-exist |
+
+The last one matters: the signup trigger only fires on signup, so an account
+created before the reset would otherwise come back with no profile and an
+empty exercise picker.

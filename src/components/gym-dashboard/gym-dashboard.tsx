@@ -1,26 +1,18 @@
-import { useState } from 'react'
 import { CalendarDays, Home, Plus, TrendingUp, UserRound } from 'lucide-react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import { defaultWorkoutName } from '@/components/gym-dashboard/format'
 import Logo from '@/components/logo'
 import { Button } from '@/components/ui/button'
-import { createWorkout } from '@/lib/workouts'
 import { cn } from '@/lib/utils'
 
 export default function GymDashboard() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const [startError, setStartError] = useState<string | null>(null)
+  const onDay = pathname === '/' || pathname.startsWith('/day/')
 
-  const startWorkout = async () => {
-    setStartError(null)
-    try {
-      const created = await createWorkout(defaultWorkoutName())
-      navigate(`/workout/${created.id}`)
-    } catch (cause) {
-      setStartError((cause as Error).message)
-    }
-  }
+  // Logging only happens on Home, against the day its header shows. The nav
+  // cannot know which day that is, so it asks for the sheet through the URL
+  // and lets Home answer -- from anywhere else, that means today.
+  const addExercise = () => navigate(onDay ? `${pathname}?add` : '/?add')
 
   return (
     <main className="min-h-screen bg-background pb-28 text-foreground md:pb-8">
@@ -37,11 +29,6 @@ export default function GymDashboard() {
             <UserRound />
           </Button>
         </header>
-        {startError && (
-          <p role="alert" className="text-sm text-destructive">
-            {startError}
-          </p>
-        )}
         <Outlet />
       </div>
       <nav
@@ -51,7 +38,7 @@ export default function GymDashboard() {
         <Button
           variant="ghost"
           size="icon"
-          className={cn('rounded-xl', pathname === '/' && 'bg-muted')}
+          className={cn('rounded-xl', onDay && 'bg-muted')}
           onClick={() => navigate('/')}
           aria-label="Home"
         >
@@ -70,8 +57,8 @@ export default function GymDashboard() {
           variant="default"
           size="icon"
           className="size-12 -translate-y-5 rounded-full border-4 border-background bg-accent text-accent-foreground shadow-md hover:bg-accent/90"
-          onClick={startWorkout}
-          aria-label="Start workout"
+          onClick={addExercise}
+          aria-label="Log an exercise"
         >
           <Plus />
         </Button>

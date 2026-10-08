@@ -1,6 +1,6 @@
 import { History } from 'lucide-react'
-import { formatSeconds, formatShortDate } from '@/components/gym-dashboard/format'
-import type { LastPerformance as Performance } from '@/lib/workouts'
+import { formatDayLabel, formatSeconds } from '@/lib/format'
+import type { LastPerformance as Performance } from '@/lib/log'
 
 export default function LastPerformance({ performance }: { performance: Performance | null }) {
   if (!performance) {
@@ -15,7 +15,7 @@ export default function LastPerformance({ performance }: { performance: Performa
           ? formatSeconds(performance.duration_seconds)
           : `${performance.weight_kg} kg × ${performance.reps}`}
       </span>
-      <span>· {formatShortDate(performance.performed_at)}</span>
+      <span>· {formatDayLabel(performance.performed_on)}</span>
     </span>
   )
 }

@@ -5,7 +5,6 @@ import HistoryScreen from '@/components/gym-dashboard/history-screen'
 import HomeScreen from '@/components/gym-dashboard/home-screen'
 import ProfileScreen from '@/components/gym-dashboard/profile-screen'
 import ProgressScreen from '@/components/gym-dashboard/progress-screen'
-import WorkoutScreen from '@/components/gym-dashboard/workout-screen'
 import MissingConfig from '@/components/missing-config'
 import { supabaseConfigured } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
@@ -24,10 +23,10 @@ export default function App() {
     <Routes>
       <Route element={<GymDashboard />}>
         <Route index element={<HomeScreen />} />
+        <Route path="day/:date" element={<HomeScreen />} />
         <Route path="history" element={<HistoryScreen />} />
         <Route path="progress" element={<ProgressScreen />} />
         <Route path="profile" element={<ProfileScreen />} />
-        <Route path="workout/:workoutId" element={<WorkoutScreen />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

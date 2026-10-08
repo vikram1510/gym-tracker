@@ -1,17 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchLastPerformances, type LastPerformance } from '@/lib/workouts'
+import type { DayKey } from '@/lib/day'
+import { fetchLastPerformances, type LastPerformance } from '@/lib/log'
 
-export function useLastPerformance(exerciseIds: string[]) {
+export function useLastPerformance(before: DayKey) {
   const [byId, setById] = useState(new Map<string, LastPerformance>())
-  const key = useMemo(
-    () => [...new Set(exerciseIds)].filter(Boolean).sort().join('\n'),
-    [exerciseIds],
-  )
 
   useEffect(() => {
-    if (!key) return
     let active = true
-    fetchLastPerformances(key.split('\n'))
+    fetchLastPerformances(before)
       .then((rows) => {
         if (active) setById(new Map(rows.map((row) => [row.exercise_id, row])))
       })
@@ -19,7 +15,7 @@ export function useLastPerformance(exerciseIds: string[]) {
     return () => {
       active = false
     }
-  }, [key])
+  }, [before])
 
   return useMemo(() => (exerciseId: string) => byId.get(exerciseId) ?? null, [byId])
 }

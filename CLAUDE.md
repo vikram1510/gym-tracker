@@ -24,18 +24,18 @@ src/components/
   gym-dashboard/
     gym-dashboard.tsx     ← the component the folder is named for
     home-screen.tsx       ← only used by gym-dashboard
-    workout-screen.tsx
-    workout-card.tsx      ← the dark hero card, shared by both uses
-    workout-title.tsx     ← inline-editable workout name
-    progress-screen.tsx
     history-screen.tsx
+    progress-screen.tsx
     profile-screen.tsx
+    exercise-picker.tsx   ← the add sheet; only Home logs
     stat.tsx
-    use-workout.ts        ← hooks live beside the screen that uses them
-    use-home-data.ts
-    format.ts             ← date, duration, volume, default name
-    quotes.ts
-    demo-data.ts          ← placeholder data, still used by history/progress
+    use-day.ts            ← hooks live beside the screen that uses them
+    use-history.ts
+  exercise-card/          ← Home and History both render these
+    exercise-card.tsx
+    set-row.tsx
+    last-performance.tsx
+    summarise.ts
   auth-screen/
     auth-screen.tsx
     check-inbox.tsx
@@ -73,17 +73,24 @@ Use `cn()` from `@/lib/utils` whenever classes are conditional or arrive via pro
 
 Schema lives in `supabase/schema.sql` — the baseline, as a fresh project should look. Changes since then are numbered files in `supabase/migrations/`. There is no migration tool; both are run by hand in the SQL Editor, and nothing tracks what has been applied.
 
+To rebuild from nothing: `reset.sql` → `schema.sql` → `seed-existing-users.sql`. The last one matters — `reset.sql` leaves `auth.users` alone so you stay signed in, but the signup trigger only fires on signup, so an existing account would otherwise come back with no profile and an empty picker.
+
 **A schema change goes in both places**: a new numbered migration _and_ folded into `schema.sql`. Miss one and a new project drifts from the live one. See `supabase/migrations/README.md`.
 
-`workouts` → `workout_exercises` → `sets`, each cascading on delete, plus `profiles`, a per-user `exercises` catalogue, and three views (`workout_summaries`, `exercise_suggestions`, `exercise_last_sets`).
+`logged_exercises` → `sets`, cascading on delete, plus `profiles`, a per-user `exercises` catalogue, two views (`day_summaries`, `exercise_suggestions`) and the `exercise_last_sets(p_before)` function.
 
-- **RLS is on for every table, and must stay that way.** The publishable key is public, so anyone can query the API directly; policies are the only thing stopping them. Child tables inherit ownership through their parent workout rather than storing `user_id` again.
+- **A day is the only grouping. There is no workout.** Nothing starts, nothing finishes, nothing has a name or a duration. An exercise is logged against `logged_on`, a plain date.
+- **`logged_on` is the user's local date, sent by the client.** The column deliberately has no default: `current_date` on the server is UTC, so a 10pm session in BST would file under tomorrow. `src/lib/day.ts` owns the conversion, and never uses `toISOString()`.
+- **The same exercise can appear twice in a day** — two separate `logged_exercises` rows, told apart by `created_at`, which the card shows as a time. There is no unique index.
+- **"Last session" is a function, not a view**, for the same timezone reason: the caller passes the day it is looking at, so an older day shows what came before _it_, and a day in progress never matches itself.
+
+- **RLS is on for every table, and must stay that way.** The publishable key is public, so anyone can query the API directly; policies are the only thing stopping them. `sets` inherits ownership through its parent `logged_exercises` row rather than storing `user_id` again.
 - **Weights are stored in kilograms.** `profiles.units` is display-only. Never write a pound value into `weight_kg`.
 - **Ordering is explicit** via 0-based `position` columns. Row order from Postgres means nothing.
-- **Totals are computed, never stored** — volume and duration come from `workout_summaries`.
-- **A set counts once it has both a weight and reps** — or, for a timed exercise, a duration. There is no `completed` flag — it was removed. The rule lives in one place, the `set_counts(kind, weight_kg, reps, duration_seconds)` function, because both `workout_summaries` and `exercise_last_sets` ask it and must never disagree.
+- **Totals are computed, never stored** — volume and set counts come from `day_summaries`.
+- **A set counts once it has both a weight and reps** — or, for a timed exercise, a duration. There is no `completed` flag — it was removed. The rule lives in one place, the `set_counts(kind, weight_kg, reps, duration_seconds)` function, because both `day_summaries` and `exercise_last_sets` ask it and must never disagree.
 - **An exercise is either `'reps'` or `'time'`** (`exercises.kind`). Planks and holds are logged in seconds via `sets.duration_seconds`; weight is left null and never written. Nothing in the database enforces that — the kind is two joins from `sets`, so a check constraint can't see it. The kind is also fixed once created: changing it would strand every set logged in the other shape. `get_or_create_exercise` ignores the kind argument for a name that already exists, so the picker reads the catalogue's kind rather than letting its toggle win.
-- **Volume is weight-only.** Timed sets contribute nothing to `volume_kg`, so a plank-only session genuinely shows 0 kg. `logged_sets` does count them, or that session would read "0 sets" in History.
+- **Volume is weight-only.** Timed sets contribute nothing to `volume_kg`, so a day of nothing but planks genuinely shows 0 kg. `logged_sets` does count them, or that day would read "0 sets" in History.
 - **Exercises are a per-user catalogue.** `workout_exercises` points at `exercises.id` and stores no name, so renaming an exercise renames it in every past workout too. Never insert into `exercises` directly — go through the `get_or_create_exercise(name)` RPC, which owns the dedupe. Uniqueness is `(user_id, lower(btrim(name)))`, so "Leg press" and "leg press " are one row.
 - **The signup trigger seeds a profile plus five exercises** (four reps, plus a timed Plank), so the picker is never empty and timed exercises are discoverable. There is no shared library — each user gets their own copies. Accounts made before that trigger existed have neither.
 - `exercises` is referenced `on delete restrict`: deleting one that appears in any workout fails rather than silently erasing history.
@@ -94,25 +101,28 @@ Schema lives in `supabase/schema.sql` — the baseline, as a fresh project shoul
 React Router (`react-router`, v8) with `BrowserRouter` in `main.tsx`. Routes live in `App.tsx`; `gym-dashboard.tsx` is the layout that renders `<Outlet />` plus the header and bottom nav.
 
 ```
-/                    home
+/                    today
+/day/:date           any day, same screen as /
 /history
 /progress
 /profile
-/workout/:workoutId
 ```
 
 The point of routing here is **swipe-back**: the OS edge-swipe gesture walks browser history, so one screen per history entry gets it for free. Nothing implements the gesture.
 
 - **`vercel.json` rewrites everything to `/index.html`.** Without it, refreshing on `/history` or opening a shared `/workout/:id` link 404s in production — and never locally, because Vite's dev server already falls back.
 - **The auth gate sits above the routes**, not inside them. Signing in on a deep link lands on that page, because the URL never changed — only what was rendered at it. Don't move the gate into a route.
-- **`onBack` checks `location.key === 'default'`** before `navigate(-1)`. On a deep link or refresh there is no history to go back to, and `-1` would leave the app.
+- **The day on screen lives in the URL, not in state.** `/` is today, `/day/:date` is any other. Home reads it from the route, so the chevrons are just navigation and swipe-back walks days.
+- **The nav's `+` opens the picker through the URL** (`?add`), because the layout holding the nav cannot know which day Home is showing. Back closes the sheet instead of leaving the page. From anywhere but Home it means today.
 - Screens call `useNavigate()` themselves rather than taking `onOpen`-style props.
 
 ## Data loading
 
 Screens get their data from a hook that owns the fetch and the mutations (`use-workout`, `use-home-data`). Components stay presentational.
 
-Writes are optimistic: update local state first, fire the request, surface an error if it fails. Weight and rep edits are debounced 500ms so typing doesn't write per keystroke — anything that ends a workout must flush pending writes first, or the last value typed is lost.
+Writes are optimistic: update local state first, fire the request, surface an error if it fails. Weight, rep and duration edits are debounced 500ms so typing doesn't write per keystroke.
+
+**`useLoggedExercises` (`src/lib/use-logged-exercises.ts`) owns every edit**, and both Home and History drive it, so a card behaves the same wherever it appears. It **flushes pending writes on unmount rather than cancelling them** — there is no "Finish" button any more, so nothing else would ever land the last value you typed before navigating away.
 
 Data loads once on mount. Screens unmount when you navigate, so going back refetches — but an action whose result another screen displays has to be awaited before navigating, or the refetch races the write.
 
@@ -126,7 +136,7 @@ Data loads once on mount. Screens unmount when you navigate, so going back refet
 
 See `FEATURES.md` — what's done, what's next, and what's parked and why. Keep it ticked off as things land; it's the single source, don't restate it here.
 
-The traps worth knowing before touching anything: History and Progress still read `demo-data.ts`, and the `⋯` on each exercise card is a dead button.
+The trap worth knowing before touching anything: Progress is still hardcoded placeholder numbers.
 
 Three known lint warnings, all accepted: shadcn's `button.tsx` exporting `buttonVariants` alongside the component, and `use-home-data.ts` / `use-history.ts` setting state in an effect, which is the normal fetch-on-mount shape.
 

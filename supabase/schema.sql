@@ -4,9 +4,11 @@
 -- Conventions:
 --   weights are stored in kilograms; `profiles.units` only controls display
 --   ordering is explicit via `position` (0-based); creation time is not order
---   totals (volume, duration) are computed, never stored
+--   totals are computed, never stored
 --   a set counts once it has both a weight and reps -- or, for a timed
 --     exercise, a duration; there is no done flag
+--   a day is the only grouping. There is no workout, nothing to start and
+--     nothing to finish: an exercise is logged against a date.
 
 create extension if not exists "pgcrypto";
 
@@ -75,9 +77,10 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Adding an exercise to a workout goes through here, so a name typed twice
--- resolves to the same row instead of quietly forking the history. Runs as
--- the caller, so RLS still decides whose list is touched.
+-- Logging an exercise goes through here, so a name typed twice resolves to
+-- the same row instead of quietly forking the history. Runs as the caller,
+-- so RLS still decides whose list is touched. The kind only applies when the
+-- row is created: an exercise that already exists keeps the kind it has.
 create function public.get_or_create_exercise(p_name text, p_kind text default 'reps')
 returns uuid
 language plpgsql
@@ -102,66 +105,40 @@ begin
 end;
 $$;
 
--- ---------------------------------------------------------------- workouts
+-- -------------------------------------------------------- logged exercises
 
-create table public.workouts (
+-- One row per exercise per time you logged it. The same exercise twice in a
+-- day is two rows, not one: a morning and an evening session read as two
+-- entries, told apart by created_at.
+--
+-- `logged_on` has no default on purpose. The client sends its own local
+-- date; a server-side default would be UTC, and a 10pm session in BST would
+-- land on tomorrow.
+create table public.logged_exercises (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users on delete cascade,
-  name text not null default 'Workout',
-  started_at timestamptz not null default now(),
-  finished_at timestamptz,
-  created_at timestamptz not null default now(),
-  check (finished_at is null or finished_at >= started_at)
-);
-
-create index workouts_user_started_idx
-  on public.workouts (user_id, started_at desc);
-
-alter table public.workouts enable row level security;
-
-create policy "own workouts" on public.workouts
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
--- ------------------------------------------------------- workout_exercises
-
--- Points at the catalogue rather than storing a name, so renaming an
--- exercise renames it everywhere, past workouts included.
-create table public.workout_exercises (
-  id uuid primary key default gen_random_uuid(),
-  workout_id uuid not null references public.workouts on delete cascade,
   exercise_id uuid not null references public.exercises on delete restrict,
+  logged_on date not null,
   position integer not null,
   created_at timestamptz not null default now()
 );
 
-create index workout_exercises_workout_idx
-  on public.workout_exercises (workout_id, position);
+create index logged_exercises_user_day_idx
+  on public.logged_exercises (user_id, logged_on desc, position);
 
-create index workout_exercises_exercise_idx
-  on public.workout_exercises (exercise_id);
+create index logged_exercises_exercise_idx
+  on public.logged_exercises (exercise_id);
 
-alter table public.workout_exercises enable row level security;
+alter table public.logged_exercises enable row level security;
 
--- Ownership is inherited through the parent workout rather than duplicating
--- user_id, so a workout can never disagree with its own exercises.
-create policy "own workout exercises" on public.workout_exercises
-  for all using (
-    exists (
-      select 1 from public.workouts w
-      where w.id = workout_id and w.user_id = auth.uid()
-    )
-  ) with check (
-    exists (
-      select 1 from public.workouts w
-      where w.id = workout_id and w.user_id = auth.uid()
-    )
-  );
+create policy "own logged exercises" on public.logged_exercises
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- -------------------------------------------------------------------- sets
 
 create table public.sets (
   id uuid primary key default gen_random_uuid(),
-  workout_exercise_id uuid not null references public.workout_exercises on delete cascade,
+  logged_exercise_id uuid not null references public.logged_exercises on delete cascade,
   position integer not null,
   weight_kg numeric(6, 2) check (weight_kg >= 0),
   reps integer check (reps >= 0),
@@ -169,32 +146,30 @@ create table public.sets (
   created_at timestamptz not null default now()
 );
 
-create index sets_exercise_idx
-  on public.sets (workout_exercise_id, position);
+create index sets_logged_exercise_idx
+  on public.sets (logged_exercise_id, position);
 
 alter table public.sets enable row level security;
 
+-- Ownership is inherited through the parent row rather than duplicating
+-- user_id, so a set can never disagree with the exercise it belongs to.
 create policy "own sets" on public.sets
   for all using (
     exists (
-      select 1
-      from public.workout_exercises we
-      join public.workouts w on w.id = we.workout_id
-      where we.id = workout_exercise_id and w.user_id = auth.uid()
+      select 1 from public.logged_exercises le
+      where le.id = logged_exercise_id and le.user_id = auth.uid()
     )
   ) with check (
     exists (
-      select 1
-      from public.workout_exercises we
-      join public.workouts w on w.id = we.workout_id
-      where we.id = workout_exercise_id and w.user_id = auth.uid()
+      select 1 from public.logged_exercises le
+      where le.id = logged_exercise_id and le.user_id = auth.uid()
     )
   );
 
 -- ------------------------------------------------------------ set counting
 
--- "Did this set happen" depends on the exercise, and is asked by both views
--- below. One definition, so the two can never drift apart.
+-- "Did this set happen" depends on the exercise, and is asked in more than
+-- one place below. One definition, so they can never drift apart.
 create function public.set_counts(
   p_kind text,
   p_weight_kg numeric,
@@ -214,18 +189,19 @@ $$;
 
 -- --------------------------------------------------------------- summaries
 
--- Feeds the history and progress screens. security_invoker means the view is
--- read as the calling user, so the policies above still apply.
-create view public.workout_summaries
+-- Feeds the history screen. security_invoker means the view is read as the
+-- calling user, so the policies above still apply.
+--
+-- Volume is weight-only: a timed set has no weight and contributes nothing,
+-- so a day of nothing but planks genuinely reads 0 kg. logged_sets does
+-- count them, or that day would read "0 sets".
+create view public.day_summaries
 with (security_invoker = true)
 as
 select
-  w.id,
-  w.user_id,
-  w.name,
-  w.started_at,
-  w.finished_at,
-  extract(epoch from (w.finished_at - w.started_at))::integer as duration_seconds,
+  le.user_id,
+  le.logged_on,
+  count(distinct le.id) as exercises,
   coalesce(
     sum(s.weight_kg * s.reps) filter (where s.weight_kg is not null and s.reps is not null),
     0
@@ -233,11 +209,10 @@ select
   count(s.id) filter (
     where public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
   ) as logged_sets
-from public.workouts w
-left join public.workout_exercises we on we.workout_id = w.id
-left join public.exercises e on e.id = we.exercise_id
-left join public.sets s on s.workout_exercise_id = we.id
-group by w.id;
+from public.logged_exercises le
+join public.exercises e on e.id = le.exercise_id
+left join public.sets s on s.logged_exercise_id = le.id
+group by le.user_id, le.logged_on;
 
 -- --------------------------------------------------------- exercise lookup
 
@@ -251,31 +226,40 @@ select
   e.user_id,
   e.name,
   e.kind,
-  count(we.id) as times_used,
-  max(w.started_at) as last_used_at
+  count(le.id) as times_used,
+  max(le.logged_on) as last_used_on
 from public.exercises e
-left join public.workout_exercises we on we.exercise_id = e.id
-left join public.workouts w on w.id = we.workout_id
+left join public.logged_exercises le on le.exercise_id = e.id
 group by e.id;
 
--- The last logged set of the last finished session, per exercise -- the set
--- you finished on, not the heaviest. Only finished workouts count, so a
--- workout in progress never matches itself.
-create view public.exercise_last_sets
-with (security_invoker = true)
-as
-select distinct on (we.exercise_id)
-  w.user_id,
-  we.exercise_id,
-  w.id as workout_id,
-  w.finished_at as performed_at,
-  s.weight_kg,
-  s.reps,
-  s.duration_seconds
-from public.workouts w
-join public.workout_exercises we on we.workout_id = w.id
-join public.exercises e on e.id = we.exercise_id
-join public.sets s on s.workout_exercise_id = we.id
-where w.finished_at is not null
-  and public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
-order by we.exercise_id, w.finished_at desc, s.position desc;
+-- The set you finished on last, per exercise, before a given day -- not the
+-- heaviest. A function rather than a view because "before today" depends on
+-- the caller's timezone: current_date here is UTC, which near midnight is
+-- the wrong day. The client passes its own local date, so a day in progress
+-- never matches itself.
+create function public.exercise_last_sets(p_before date)
+returns table (
+  exercise_id uuid,
+  performed_on date,
+  weight_kg numeric,
+  reps integer,
+  duration_seconds integer
+)
+language sql
+stable
+set search_path = ''
+as $$
+  select distinct on (le.exercise_id)
+    le.exercise_id,
+    le.logged_on,
+    s.weight_kg,
+    s.reps,
+    s.duration_seconds
+  from public.logged_exercises le
+  join public.exercises e on e.id = le.exercise_id
+  join public.sets s on s.logged_exercise_id = le.id
+  where le.user_id = auth.uid()
+    and le.logged_on < p_before
+    and public.set_counts(e.kind, s.weight_kg, s.reps, s.duration_seconds)
+  order by le.exercise_id, le.logged_on desc, le.created_at desc, s.position desc;
+$$;

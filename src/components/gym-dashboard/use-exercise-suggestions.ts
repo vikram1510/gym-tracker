@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchExerciseSuggestions, type ExerciseSuggestion } from '@/lib/workouts'
+import { fetchExerciseSuggestions, type ExerciseSuggestion } from '@/lib/log'
 
 export function useExerciseSuggestions(enabled: boolean) {
   const [suggestions, setSuggestions] = useState<ExerciseSuggestion[]>([])
